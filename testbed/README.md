@@ -48,9 +48,31 @@ package README and is a genuinely nasty one to debug.
 HBAR is `asset: "0.0.0"` and amounts are in **tinybars**: 1 HBAR = 10^8
 tinybars. `PRICE_TINYBAR=1000000` is 0.01 HBAR.
 
+## Facilitator URL — read this before you change it
+
+The Hedera prize page links Blocky402 as `https://blocky402.com/`. **That is the
+marketing site, not the API.** Pointing `FACILITATOR_URL` at it gives a 404 with
+a Next.js page in the error and every gated route then 500s. The API bases are:
+
+| Network | Base URL |
+|---|---|
+| `hedera:testnet` | `https://api.testnet.blocky402.com` ← what we use |
+| `hedera:mainnet` | `https://api.blocky402.com` (mainnet only) |
+
+Logged in `HEDERA_FEEDBACK.md`.
+
 ## Status
 
-Scaffold written against the verified `@x402/hedera@2.25.0` /
-`@x402/core@2.25.0` API (README + type signatures). **Not yet run against a
-live facilitator** — the Blocky402 URL and the exact settle-response shape need
-confirming on first run. Expect to adjust `settleAndDeliver()`.
+Built against the verified `@x402/core` / `@x402/hedera` / `@x402/express`
+2.25.0 API and **run**, not just typechecked:
+
+- ✅ boots and syncs supported kinds from the testnet facilitator
+- ✅ `POST /good` with no payment returns a spec-valid `HTTP 402` with a
+  well-formed `PAYMENT-REQUIRED` header (x402Version 2, `hedera:testnet`,
+  amount in tinybars, asset `0.0.0`, our `payTo`)
+- ✅ auto-discovers the facilitator's fee payer (`0.0.7162784`) — no config
+- ⬜ **not yet: an actual settled payment.** That needs the client side
+  (the P4 delivery check in `packages/checks`), which is the next task.
+
+Until a payment settles, `/bad-replay` and `/bad-delivery` cannot be
+distinguished from `/good` — they all just return 402.

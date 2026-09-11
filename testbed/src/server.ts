@@ -2,45 +2,43 @@
  * Preflight testbed — three x402-gated endpoints we own, behaving differently
  * on purpose so the scanner can be shown separating them.
  *
- *   /good          correct: verify → nonce check → settle → deliver
- *   /bad-replay    accepts the same payment proof repeatedly (no nonce check)
- *   /bad-delivery  settles the payment, then returns 500 and no resource
+ *   POST /good          correct: middleware verifies + settles, handler delivers
+ *   POST /bad-replay    caches the payment check — the same proof buys forever
+ *   POST /bad-delivery  settles the payment, then returns 500 and no resource
  *
  * See ETHICS.md — these are the ONLY hosts Group A checks may run against.
- *
- * NOTE: written against the verified @x402/hedera@2.25.0 API (package README +
- * .d.ts). Not yet run against a live facilitator; expect to adjust the settle
- * response handling on first real run.
  */
 import 'dotenv/config';
-import express, { type Request, type Response } from 'express';
-import { x402ResourceServer } from '@x402/core/server';
-import { HTTPFacilitatorClient } from '@x402/core/facilitator';
+import express, { type Request, type Response, type NextFunction } from 'express';
+import { paymentMiddleware, x402ResourceServer } from '@x402/express';
+import { HTTPFacilitatorClient } from '@x402/core/server';
 import { ExactHederaScheme } from '@x402/hedera/exact/server';
 
 const {
   HEDERA_RECEIVER_ACCOUNT_ID,
   FACILITATOR_URL = 'https://blocky402.com',
   FACILITATOR_TIMEOUT_MS = '30000',
-  HEDERA_NETWORK = 'hedera:testnet',
   PRICE_TINYBAR = '1000000',
   PORT = '8402',
 } = process.env;
+
+const HEDERA_NETWORK = (process.env.HEDERA_NETWORK ?? 'hedera:testnet') as `${string}:${string}`;
 
 if (!HEDERA_RECEIVER_ACCOUNT_ID) {
   console.error('Missing HEDERA_RECEIVER_ACCOUNT_ID. Copy .env.example to .env.');
   process.exit(1);
 }
 
-/** HBAR is asset 0.0.0; amounts are in tinybars (1 HBAR = 1e8 tinybar). */
+/** HBAR is asset 0.0.0 and amounts are in tinybars (1 HBAR = 1e8 tinybar). */
 const HBAR_ASSET = '0.0.0';
+const price = { asset: HBAR_ASSET, amount: PRICE_TINYBAR };
 
-const facilitator = new HTTPFacilitatorClient({
+const facilitatorClient = new HTTPFacilitatorClient({
   url: FACILITATOR_URL,
   timeoutMs: Number(FACILITATOR_TIMEOUT_MS),
 });
 
-const x402 = new x402ResourceServer(facilitator).register(
+const resourceServer = new x402ResourceServer(facilitatorClient).register(
   'hedera:*',
   new ExactHederaScheme({
     defaultAssets: {
@@ -49,111 +47,94 @@ const x402 = new x402ResourceServer(facilitator).register(
   }),
 );
 
-/** What a caller must pay to use a given route. */
-function requirementsFor(route: string) {
+function accepts(description: string) {
   return {
-    scheme: 'exact',
-    network: HEDERA_NETWORK,
-    asset: HBAR_ASSET,
-    maxAmountRequired: PRICE_TINYBAR,
-    payTo: HEDERA_RECEIVER_ACCOUNT_ID,
-    resource: `/${route}`,
-    description: `Preflight testbed: ${route}`,
+    accepts: { scheme: 'exact', price, network: HEDERA_NETWORK, payTo: HEDERA_RECEIVER_ACCOUNT_ID! },
+    description,
     mimeType: 'application/json',
-  };
-}
-
-/**
- * Payment proofs we have already settled, so /good can refuse a replay.
- * /bad-replay deliberately does not consult this — that is its whole bug.
- */
-const spentProofs = new Set<string>();
-
-/** Stable key for a payment payload, used for replay detection. */
-function proofKey(payload: unknown): string {
-  return JSON.stringify(payload);
-}
-
-/** Reads the x402 payment header, if the caller sent one. */
-function readPaymentHeader(req: Request): string | undefined {
-  const header = req.header('X-PAYMENT') ?? req.header('x-payment');
-  return header && header.length > 0 ? header : undefined;
-}
-
-/** Standard 402: tell the caller exactly what payment would satisfy us. */
-function send402(res: Response, route: string) {
-  res.status(402).json({
-    x402Version: 2,
-    error: 'payment required',
-    accepts: [requirementsFor(route)],
-  });
-}
-
-type Mode = 'good' | 'bad-replay' | 'bad-delivery';
-
-function handler(mode: Mode) {
-  return async (req: Request, res: Response) => {
-    const header = readPaymentHeader(req);
-    if (!header) return send402(res, mode);
-
-    let payload: unknown;
-    try {
-      payload = JSON.parse(Buffer.from(header, 'base64').toString('utf8'));
-    } catch {
-      return res.status(400).json({ error: 'malformed X-PAYMENT header' });
-    }
-
-    const requirements = requirementsFor(mode);
-    const key = proofKey(payload);
-
-    // THE BUG in bad-replay: it never checks whether this proof was already used.
-    if (mode !== 'bad-replay' && spentProofs.has(key)) {
-      return res.status(409).json({ error: 'payment proof already used' });
-    }
-
-    try {
-      const verification = await x402.verify(payload as never, requirements as never);
-      if (!verification?.isValid) {
-        return res.status(402).json({ error: 'payment verification failed', verification });
-      }
-
-      const settlement = await x402.settle(payload as never, requirements as never);
-      spentProofs.add(key);
-
-      // THE BUG in bad-delivery: it took the money and gives nothing back.
-      if (mode === 'bad-delivery') {
-        return res.status(500).json({ error: 'internal error' });
-      }
-
-      return res.status(200).json({
-        ok: true,
-        route: mode,
-        resource: { message: `Preflight testbed ${mode} delivered.`, servedAt: new Date().toISOString() },
-        settlement,
-      });
-    } catch (err) {
-      return res.status(502).json({
-        error: 'settlement error',
-        detail: err instanceof Error ? err.message : String(err),
-      });
-    }
   };
 }
 
 const app = express();
 app.use(express.json());
 
-app.get('/health', (_req, res) =>
-  res.json({ ok: true, network: HEDERA_NETWORK, payTo: HEDERA_RECEIVER_ACCOUNT_ID, priceTinybar: PRICE_TINYBAR }),
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    network: HEDERA_NETWORK,
+    payTo: HEDERA_RECEIVER_ACCOUNT_ID,
+    priceTinybar: PRICE_TINYBAR,
+    routes: ['POST /good', 'POST /bad-replay', 'POST /bad-delivery'],
+  });
+});
+
+/**
+ * THE BUG in /bad-replay.
+ *
+ * A correct server treats a payment proof as single-use. This one remembers
+ * that a proof "was valid once" and short-circuits on every later sighting of
+ * it — so one payment buys the resource forever. That is the free-shopping
+ * failure mode from Five Attacks on x402 (arXiv:2605.11781).
+ *
+ * Implemented as a shim ahead of the payment middleware, because the
+ * middleware itself does the right thing and we have to actively defeat it.
+ */
+const seenProofs = new Set<string>();
+
+function replayShim(req: Request, res: Response, next: NextFunction) {
+  const proof = req.header('X-PAYMENT');
+  if (proof && seenProofs.has(proof)) {
+    res.status(200).json({
+      ok: true,
+      route: 'bad-replay',
+      resource: { message: 'served again on a reused payment proof', servedAt: new Date().toISOString() },
+      replayed: true,
+    });
+    return;
+  }
+  next();
+}
+
+app.post('/bad-replay', replayShim);
+
+app.use(
+  paymentMiddleware(
+    {
+      'POST /good': accepts('Preflight testbed: correct implementation'),
+      'POST /bad-replay': accepts('Preflight testbed: replayable payment proof'),
+      'POST /bad-delivery': accepts('Preflight testbed: takes payment, delivers nothing'),
+    },
+    resourceServer,
+  ),
 );
 
-app.post('/good', handler('good'));
-app.post('/bad-replay', handler('bad-replay'));
-app.post('/bad-delivery', handler('bad-delivery'));
+app.post('/good', (_req, res) => {
+  res.json({
+    ok: true,
+    route: 'good',
+    resource: { message: 'Preflight testbed delivered.', servedAt: new Date().toISOString() },
+  });
+});
+
+app.post('/bad-replay', (req, res) => {
+  const proof = req.header('X-PAYMENT');
+  if (proof) seenProofs.add(proof); // remembering this is precisely the bug
+  res.json({
+    ok: true,
+    route: 'bad-replay',
+    resource: { message: 'served on first payment', servedAt: new Date().toISOString() },
+    replayed: false,
+  });
+});
+
+/** THE BUG in /bad-delivery: payment settled upstream, nothing comes back. */
+app.post('/bad-delivery', (_req, res) => {
+  res.status(500).json({ error: 'internal error' });
+});
 
 app.listen(Number(PORT), () => {
   console.log(`Preflight testbed on :${PORT}  (${HEDERA_NETWORK}, payTo ${HEDERA_RECEIVER_ACCOUNT_ID})`);
-  console.log(`  POST /good           → SAFE`);
-  console.log(`  POST /bad-replay     → UNSAFE (A1)`);
-  console.log(`  POST /bad-delivery   → UNSAFE (P4)`);
+  console.log(`  POST /good          -> SAFE`);
+  console.log(`  POST /bad-replay    -> UNSAFE (A1 replay)`);
+  console.log(`  POST /bad-delivery  -> UNSAFE (P4 delivery)`);
 });

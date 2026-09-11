@@ -1,7 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+# NOT anchored with a leading slash — must match testbed/, apps/, packages/ too.
+# A leading-slash rule silently let testbed/node_modules (520MB) through.
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -40,3 +42,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# build output (any workspace)
+dist/
+/out/
+
+# logs
+*.log
+
+# local scratch — never commit
+scratch/
+tmp/
+
+# Evidence we DO commit, stated explicitly so nobody "tidies" it away:
+#   data/scan-runs/**    timestamped raw scan results = the evidence trail
+#   *_sponsor.md         sponsor prize terms, for reference
+#   preflight-brief-*.md, ROADMAP.md, rules.md, IMPLEMENTATION_PLAN.md
+#     spec + planning artifacts — ETHGlobal REQUIRES these in the repo when a
+#     spec-driven workflow is used (see competition.md / ETHICS.md §7)
