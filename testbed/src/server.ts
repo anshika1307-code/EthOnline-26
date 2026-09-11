@@ -47,13 +47,30 @@ const resourceServer = new x402ResourceServer(facilitatorClient).register(
   }),
 );
 
-function accepts(description: string) {
+function accepts(description: string, extra?: Record<string, unknown>) {
   return {
-    accepts: { scheme: 'exact', price, network: HEDERA_NETWORK, payTo: HEDERA_RECEIVER_ACCOUNT_ID! },
+    accepts: {
+      scheme: 'exact',
+      price,
+      network: HEDERA_NETWORK,
+      payTo: HEDERA_RECEIVER_ACCOUNT_ID!,
+      ...(extra ? { extra } : {}),
+    },
     description,
     mimeType: 'application/json',
   };
 }
+
+/**
+ * Settle BEFORE the handler runs.
+ *
+ * This is what makes /bad-delivery a genuine "paid-but-denied" case. With the
+ * default flow the money only moves after the handler returns successfully, so
+ * a handler that 500s never charges the customer — which is safe, and not the
+ * failure mode the papers describe. Settling upfront is the configuration that
+ * actually loses the buyer money.
+ */
+const SETTLE_UPFRONT = { paymentFlow: 'upfront' };
 
 const app = express();
 app.use(express.json());
@@ -102,7 +119,10 @@ app.use(
     {
       'POST /good': accepts('Preflight testbed: correct implementation'),
       'POST /bad-replay': accepts('Preflight testbed: replayable payment proof'),
-      'POST /bad-delivery': accepts('Preflight testbed: takes payment, delivers nothing'),
+      'POST /bad-delivery': accepts(
+        'Preflight testbed: takes payment, delivers nothing',
+        SETTLE_UPFRONT,
+      ),
     },
     resourceServer,
   ),
