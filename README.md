@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SafetyGate
+> API Safety Checker/ 402 Guard (is it safe to pay this endpoint?)
+> Event: ETHGlobal (ETHOnline-2026)
+> Team: Solo
 
-## Getting Started
+## Overview
 
-First, run the development server:
+Thousands of AI agents are now registered on blockchains using a standard called ERC-8004. The registry gives each agent an identity, a place to list services, and a place to collect reputation. 
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+The problem: almost none of these agents actually work. They are registered and empty. Right now there is no easy way to tell a real, working agent from a dead shell.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+We build a readiness checker. It reads the agent registries across several blockchains, scores every agent on how "real" it is, and exposes that score in two ways: a website a human can browse, and an MCP tool an AI agent can call before it decides to trust or pay another agent. The check itself is sold per call using x402, so a buyer agent pays a fraction of a cent for a trust check instead of signing up for anything.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### What we build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Problem
+A July 2026 study of 15 x402 facilitators serving 60,000+ sellers and 360,000+ buyers found rule violations in every one, enabling free shopping, asset theft, service denial and gas abuse (arXiv:2607.19545). A separate study demonstrated five practical attacks producing unpaid-service or paid-but-denied outcomes (arXiv:2605.11781). Meanwhile only 67 of the first 10,000 registered agents even expose a service endpoint (arXiv:2606.12128). Agents are being asked to pay strangers with no way to check first.
 
-## Learn More
+### Competitor Analysis
+QuickNode's Explorer, Assay Labs and Origin DAO all read on-chain registry data and compute reputation from it. None of them contacts the endpoint. Sumsub's KYA covers compliance identity, not endpoint behaviour. We add the live behavioural layer.
 
-To learn more about Next.js, take a look at the following resources:
+> Before your AI agent pays a stranger's API, Preflight checks whether that endpoint is alive, honestly priced, and actually delivers.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Why this problem is real
 
-## Deploy on Vercel
+This is not just our opinion. It is published research from June 2026.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Paper 1 — the main one to cite From Agent Identity to Agent Economy: Measuring the Operational Readiness of ERC-8004 AI Agents (Mafrur & Khusumanegara, 10 June 2026)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---

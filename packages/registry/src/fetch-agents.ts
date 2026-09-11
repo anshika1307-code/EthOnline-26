@@ -29,15 +29,66 @@ const IDENTITY_REGISTRY: Address = getAddress(
 );
 
 const RPC_URL = process.env.RPC_URL?.trim();
-const IPFS_GATEWAY = (process.env.IPFS_GATEWAY?.trim() || 'https://ipfs.io/ipfs/').replace(/\/?$/, '/');
+// Tried in order; a gateway that times out, errors, or exhausts its 429
+// retries falls through to the next one. cloudflare-ipfs.com failed to even
+// resolve DNS in testing — kept as a last resort in case that's local/transient.
+const IPFS_GATEWAYS = (
+  process.env.IPFS_GATEWAYS?.trim() ||
+  'https://ipfs.io/ipfs/,https://dweb.link/ipfs/,https://cloudflare-ipfs.com/ipfs/'
+)
+  .split(',')
+  .map((s) => s.trim().replace(/\/?$/, '/'))
+  .filter(Boolean);
 const ENUM_MODE = (process.env.ENUM_MODE?.trim() || 'probe') as 'probe' | 'logs';
 const START_ID = BigInt(process.env.START_ID?.trim() || '1');
 const MAX_AGENTS = Number(process.env.MAX_AGENTS?.trim() || '200');
 const START_BLOCK = BigInt(process.env.START_BLOCK?.trim() || '0');
 const LOG_CHUNK = 10_000n;
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS?.trim() || '10000');
+// First gateway attempt uses FETCH_TIMEOUT_MS; every fallback attempt after
+// it gets more time, since a slow-but-alive gateway beats moving on too soon.
+const IPFS_RETRY_TIMEOUT_MS = Number(process.env.IPFS_RETRY_TIMEOUT_MS?.trim() || '20000');
 const IPFS_MIN_INTERVAL_MS = Number(process.env.IPFS_DELAY_MS?.trim() || '300');
-const IPFS_MAX_RETRIES = 3;
+const IPFS_MAX_429_RETRIES = 2;
+
+// RFC 2606 reserved domains/TLDs — used to separate obvious placeholder
+// registrations (example.com/...) from agents whose real endpoint infra is
+// actually broken. Both are "metadata didn't resolve," but only one of them
+// is the phenomenon this tool measures.
+const JUNK_HOSTS = new Set(['example.com', 'example.net', 'example.org', 'example.edu', 'localhost']);
+const JUNK_TLDS = ['.test', '.example', '.invalid', '.localhost'];
+
+type Category =
+  | 'no-uri' // agentURI never set — nothing published yet
+  | 'junk-placeholder' // agentURI points at an RFC 2606 reserved domain
+  | 'confirmed-empty' // metadata resolved; services is empty
+  | 'confirmed-no-endpoint' // metadata resolved; services has entries, none are http(s) URLs
+  | 'confirmed-has-endpoint' // metadata resolved; at least one http(s) service endpoint
+  | 'unknown-gateway-failed'; // metadata fetch failed for a reason unrelated to the above
+
+function isJunkPlaceholder(agentURI: string): boolean {
+  if (!/^https?:\/\//i.test(agentURI)) return false;
+  try {
+    const host = new URL(agentURI).hostname.toLowerCase();
+    return JUNK_HOSTS.has(host) || JUNK_TLDS.some((tld) => host.endsWith(tld));
+  } catch {
+    return false;
+  }
+}
+
+function classify(
+  agentURI: string,
+  metadataResolved: boolean,
+  services: unknown[],
+  urls: string[],
+): Category {
+  if (!agentURI) return 'no-uri';
+  if (metadataResolved) {
+    if (urls.length > 0) return 'confirmed-has-endpoint';
+    return services.length === 0 ? 'confirmed-empty' : 'confirmed-no-endpoint';
+  }
+  return isJunkPlaceholder(agentURI) ? 'junk-placeholder' : 'unknown-gateway-failed';
+}
 
 function makeClient() {
   return createPublicClient({
@@ -60,8 +111,10 @@ type AgentResult = {
   agentId: string;
   agentURI: string;
   owner: string | null;
+  category: Category;
   metadataResolved: boolean;
   metadataError: string | null;
+  gatewayAttempts: string[] | null;
   services: unknown[];
   serviceEndpointUrls: string[];
   hasServiceEndpointUrl: boolean;
@@ -177,22 +230,23 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// The public ipfs.io gateway returns 429s well before any reasonable
-// concurrency limit is hit, even one request at a time — so ipfs:// lookups
-// are throttled to one per IPFS_MIN_INTERVAL_MS and retried with backoff.
+// The public IPFS gateways return 429s (or just hang) well before any
+// reasonable concurrency limit is hit, even one request at a time — so
+// ipfs:// lookups are throttled to one in flight per IPFS_MIN_INTERVAL_MS,
+// retried on 429 within a gateway, and moved to the next gateway in
+// IPFS_GATEWAYS on timeout/error/exhausted retries. The first gateway uses
+// the normal timeout; every fallback attempt after it gets more time.
 let ipfsLastRequestAt = 0;
-async function fetchWithIpfsThrottle(url: string, isIpfs: boolean): Promise<Response> {
+async function fetchIpfsThrottled(url: string, timeoutMs: number): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
-    if (isIpfs) {
-      const wait = ipfsLastRequestAt + IPFS_MIN_INTERVAL_MS - Date.now();
-      if (wait > 0) await sleep(wait);
-      ipfsLastRequestAt = Date.now();
-    }
+    const wait = ipfsLastRequestAt + IPFS_MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    ipfsLastRequestAt = Date.now();
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { accept: 'application/json' },
     });
-    if (isIpfs && res.status === 429 && attempt < IPFS_MAX_RETRIES) {
+    if (res.status === 429 && attempt < IPFS_MAX_429_RETRIES) {
       await sleep(500 * 2 ** attempt);
       continue;
     }
@@ -200,26 +254,57 @@ async function fetchWithIpfsThrottle(url: string, isIpfs: boolean): Promise<Resp
   }
 }
 
-async function resolveMetadata(agentURI: string): Promise<Record<string, unknown>> {
+async function fetchIpfsWithFallback(
+  cidPath: string,
+): Promise<{ res: Response; attempts: string[] }> {
+  const attempts: string[] = [];
+  let lastError: unknown;
+  for (let i = 0; i < IPFS_GATEWAYS.length; i++) {
+    const url = IPFS_GATEWAYS[i] + cidPath;
+    const timeoutMs = i === 0 ? FETCH_TIMEOUT_MS : IPFS_RETRY_TIMEOUT_MS;
+    try {
+      const res = await fetchIpfsThrottled(url, timeoutMs);
+      attempts.push(`${hostOf(url)}: HTTP ${res.status}`);
+      if (res.ok) return { res, attempts };
+      lastError = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      attempts.push(`${hostOf(url)}: ${err instanceof Error ? err.message : String(err)}`);
+      lastError = err;
+    }
+  }
+  throw Object.assign(
+    new Error(
+      `all ${IPFS_GATEWAYS.length} gateways failed: ${attempts.join(' | ')}`,
+    ),
+    { cause: lastError },
+  );
+}
+
+async function resolveMetadata(
+  agentURI: string,
+): Promise<{ metadata: Record<string, unknown>; gatewayAttempts: string[] | null }> {
   if (!agentURI) throw new Error('empty agentURI');
 
   if (agentURI.startsWith('data:')) {
-    return decodeDataUri(agentURI);
+    return { metadata: decodeDataUri(agentURI), gatewayAttempts: null };
   }
 
-  const isIpfs = agentURI.startsWith('ipfs://');
-  let httpUrl: string;
-  if (isIpfs) {
-    httpUrl = IPFS_GATEWAY + agentURI.slice('ipfs://'.length).replace(/^ipfs\//, '');
-  } else if (/^https?:\/\//i.test(agentURI)) {
-    httpUrl = agentURI;
-  } else {
-    throw new Error(`unsupported URI scheme: ${agentURI.slice(0, 24)}`);
+  if (agentURI.startsWith('ipfs://')) {
+    const cidPath = agentURI.slice('ipfs://'.length).replace(/^ipfs\//, '');
+    const { res, attempts } = await fetchIpfsWithFallback(cidPath);
+    return { metadata: (await res.json()) as Record<string, unknown>, gatewayAttempts: attempts };
   }
 
-  const res = await fetchWithIpfsThrottle(httpUrl, isIpfs);
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${hostOf(httpUrl)}`);
-  return (await res.json()) as Record<string, unknown>;
+  if (/^https?:\/\//i.test(agentURI)) {
+    const res = await fetch(agentURI, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${hostOf(agentURI)}`);
+    return { metadata: (await res.json()) as Record<string, unknown>, gatewayAttempts: null };
+  }
+
+  throw new Error(`unsupported URI scheme: ${agentURI.slice(0, 24)}`);
 }
 
 function extractServiceEndpointUrls(metadata: Record<string, unknown>): {
@@ -288,8 +373,10 @@ async function main() {
       agentId: ref.agentId.toString(),
       agentURI: ref.agentURI,
       owner: null,
+      category: 'no-uri',
       metadataResolved: false,
       metadataError: null,
+      gatewayAttempts: null,
       services: [],
       serviceEndpointUrls: [],
       hasServiceEndpointUrl: false,
@@ -305,43 +392,81 @@ async function main() {
       /* owner is best-effort */
     }
     try {
-      const metadata = await resolveMetadata(ref.agentURI);
+      const { metadata, gatewayAttempts } = await resolveMetadata(ref.agentURI);
       const { services, urls } = extractServiceEndpointUrls(metadata);
       result.metadataResolved = true;
+      result.gatewayAttempts = gatewayAttempts;
       result.services = services;
       result.serviceEndpointUrls = urls;
       result.hasServiceEndpointUrl = urls.length > 0;
     } catch (err) {
       result.metadataError = err instanceof Error ? err.message : String(err);
     }
-    results.push(result);
-    process.stdout.write(
-      result.metadataResolved ? (result.hasServiceEndpointUrl ? '+' : '.') : 'x',
+    result.category = classify(
+      ref.agentURI,
+      result.metadataResolved,
+      result.services,
+      result.serviceEndpointUrls,
     );
+    results.push(result);
+    const marker: Record<Category, string> = {
+      'confirmed-has-endpoint': '+',
+      'confirmed-empty': '.',
+      'confirmed-no-endpoint': 'o',
+      'no-uri': '_',
+      'junk-placeholder': 'j',
+      'unknown-gateway-failed': 'x',
+    };
+    process.stdout.write(marker[result.category]);
   }
   console.log('\n');
 
-  const resolved = results.filter((r) => r.metadataResolved);
-  const withEndpoint = results.filter((r) => r.hasServiceEndpointUrl);
-  const allEndpoints = withEndpoint.flatMap((r) =>
+  const counts: Record<Category, AgentResult[]> = {
+    'no-uri': [],
+    'junk-placeholder': [],
+    'confirmed-empty': [],
+    'confirmed-no-endpoint': [],
+    'confirmed-has-endpoint': [],
+    'unknown-gateway-failed': [],
+  };
+  for (const r of results) counts[r.category].push(r);
+
+  const confirmedTotal =
+    counts['confirmed-empty'].length +
+    counts['confirmed-no-endpoint'].length +
+    counts['confirmed-has-endpoint'].length;
+  const noEndpointConfirmed = counts['confirmed-empty'].length + counts['confirmed-no-endpoint'].length;
+  const allEndpoints = counts['confirmed-has-endpoint'].flatMap((r) =>
     r.serviceEndpointUrls.map((u) => ({ agentId: r.agentId, url: u })),
   );
 
   console.log('===== SUMMARY =====');
   console.log(`Total agents registered:      ${totalAgents}${ENUM_MODE === 'logs' ? ' (in scanned range)' : ''}`);
   console.log(`Agents sampled this run:       ${results.length}`);
-  console.log(`Metadata resolved:             ${resolved.length} / ${results.length}`);
-  console.log(`Declared a service endpoint:   ${withEndpoint.length}`);
-  console.log(`Total endpoint URLs declared:  ${allEndpoints.length}`);
+  console.log();
+  console.log('Headline (confirmed metadata reads only):');
+  console.log(
+    `  No working service endpoint:  ${noEndpointConfirmed} / ${confirmedTotal} confirmed` +
+      (confirmedTotal ? ` (${((noEndpointConfirmed / confirmedTotal) * 100).toFixed(1)}%)` : ''),
+  );
+  console.log(`    - confirmed-empty (services: []):        ${counts['confirmed-empty'].length}`);
+  console.log(`    - confirmed-no-endpoint (no http(s) url): ${counts['confirmed-no-endpoint'].length}`);
+  console.log(`  Has a working service endpoint:  ${counts['confirmed-has-endpoint'].length} / ${confirmedTotal} confirmed`);
+  console.log();
+  console.log('Excluded from headline (not a confirmed read of the agent\'s claim):');
+  console.log(`  no-uri (nothing published yet):           ${counts['no-uri'].length}`);
+  console.log(`  junk-placeholder (RFC 2606 test domains):  ${counts['junk-placeholder'].length}`);
+  console.log(`  unknown-gateway-failed (couldn't resolve): ${counts['unknown-gateway-failed'].length}`);
+
   if (allEndpoints.length) {
     const sample = allEndpoints.slice(0, 30);
     console.log(`\nEndpoints${allEndpoints.length > sample.length ? ` (first ${sample.length})` : ''}:`);
     for (const e of sample) console.log(`  agent ${e.agentId}: ${e.url}`);
   }
-  const failed = results.filter((r) => r.metadataError);
-  if (failed.length) {
-    console.log(`\nMetadata resolution failures (${failed.length}):`);
-    for (const r of failed.slice(0, 20)) console.log(`  agent ${r.agentId}: ${r.metadataError}`);
+  if (counts['unknown-gateway-failed'].length) {
+    const failed = counts['unknown-gateway-failed'].slice(0, 20);
+    console.log(`\nunknown-gateway-failed detail (first ${failed.length}):`);
+    for (const r of failed) console.log(`  agent ${r.agentId}: ${r.metadataError}`);
   }
 
   const outDir = join('data', 'scan-runs');
@@ -360,7 +485,11 @@ async function main() {
         enumeration,
         totalAgents,
         agentsSampled: results.length,
-        agentsWithServiceEndpoint: withEndpoint.length,
+        categoryCounts: Object.fromEntries(
+          Object.entries(counts).map(([k, v]) => [k, v.length]),
+        ),
+        confirmedTotal,
+        noEndpointConfirmed,
         results,
       },
       null,

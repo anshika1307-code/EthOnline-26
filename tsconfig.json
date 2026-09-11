@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "packages/registry"]
+  "exclude": ["node_modules", "packages/registry", "testbed"]
 }

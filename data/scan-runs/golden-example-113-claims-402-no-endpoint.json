@@ -1,0 +1,28 @@
+{
+  "_note": "Golden example, pulled out of the bulk scan JSON on purpose so it doesn't get lost. Agent 113 is the clearest instance seen so far of the exact phenomenon this tool measures: an agent claims payment/service capability but declares zero working endpoints.",
+  "chain": "ethereum-sepolia",
+  "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "agentId": "113",
+  "owner": "0xf89009ceb2dee053453b87d240e7ac5104A703B3",
+  "agentURI": "data:application/json;base64,eyJuYW1lIjoiQm9iIiwiZGVzY3JpcHRpb24iOiJib2IgaXMgZ3JlYXQgYW5kIGhhcyBtYW55IGZyaWVuZHMuIGdyZWF0IGd1eSBpbmRlZWQiLCJpbWFnZSI6Ind3dy5nb29nbGUuY29tIiwiYXR0cmlidXRlcyI6W3sidHJhaXRfdHlwZSI6IlN0YXR1cyIsInZhbHVlIjoiQWN0aXZlIn0seyJ0cmFpdF90eXBlIjoiUGF5bWVudCIsInZhbHVlIjoiSFRUUCA0MDIgU3VwcG9ydGVkIn1dLCJlbmRwb2ludHMiOnt9LCJjYXBhYmlsaXRpZXMiOltdLCJ0YWdzIjpbXX0=",
+  "decodedMetadata": {
+    "name": "Bob",
+    "description": "bob is great and has many friends. great guy indeed",
+    "image": "www.google.com",
+    "attributes": [
+      { "trait_type": "Status", "value": "Active" },
+      { "trait_type": "Payment", "value": "HTTP 402 Supported" }
+    ],
+    "endpoints": {},
+    "capabilities": [],
+    "tags": []
+  },
+  "whyThisIsGolden": [
+    "Explicitly claims payment capability via an NFT-style 'attributes' trait: {\"trait_type\": \"Payment\", \"value\": \"HTTP 402 Supported\"}.",
+    "Declares zero working endpoints: 'endpoints' is an empty object and 'capabilities' is an empty array.",
+    "Doesn't even use the ERC-8004 registration-file schema (no 'type', no 'services' array) — it uses an NFT/OpenSea-style 'attributes' shape instead, which our extractServiceEndpointUrls() correctly does not credit as declaring a service.",
+    "'image' is the bare string 'www.google.com', not a URL — another sign this registration was never meant to be machine-consumed per spec."
+  ],
+  "category": "confirmed-empty",
+  "extractedFrom": "sepolia-2026-09-11T09-05-49-994Z.json (post retry/gateway-fallback fix; agent 113's agentURI is a data: URI so this result is unaffected by that fix either way — category is confirmed-empty in both the pre- and post-fix runs)"
+}

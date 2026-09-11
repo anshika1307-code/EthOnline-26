@@ -1,0 +1,24 @@
+{
+  "name": "preflight-testbed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Three deliberately-differing x402-gated endpoints used to prove the Preflight scanner separates good from bad.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@x402/core": "~2.25.0",
+    "@x402/hedera": "~2.25.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
