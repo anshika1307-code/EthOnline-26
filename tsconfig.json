@@ -30,6 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "//exclude": "Workspaces have their own tsconfig with a modern target. Excluded wholesale rather than one by one — listing them individually silently broke `next build` each time a new package was added (BigInt literals vs this file's ES2017 target).",
-  "exclude": ["node_modules", "packages", "testbed"]
+  "//exclude": "Workspaces have their own tsconfig with a modern target. Excluded wholesale rather than one by one — listing them individually silently broke `next build` each time a new workspace was added (BigInt literals vs this file's ES2017 target). Note `exclude` only filters the initial glob — a file pulled in by an import is still typechecked, which is why apps/ must be excluded too rather than relying on packages/ alone.",
+  "exclude": ["node_modules", "packages", "testbed", "apps"]
 }
