@@ -1,11 +1,36 @@
 {
-  "generatedAt": "2026-09-12T18:03:02.576Z",
+  "generatedAt": "2026-09-12T18:18:11.209Z",
   "sourceScan": "data/scan-runs/sepolia-2026-09-11T09-23-54-453Z.json",
   "sourceLiveness": "data/liveness-runs/sepolia-p1-2026-09-12T12-40-37-487Z.json",
   "anonymised": true,
   "verdictCounts": {
     "UNKNOWN": 4,
     "DEAD": 4
+  },
+  "concentration": {
+    "endpointCount": 8,
+    "agentCount": 6,
+    "domainCount": 2,
+    "hostCount": 2,
+    "byDomain": [
+      {
+        "domain": "heurist.xyz",
+        "endpoints": 4,
+        "agents": 4,
+        "share": 0.5
+      },
+      {
+        "domain": "githubusercontent.com",
+        "endpoints": 4,
+        "agents": 2,
+        "share": 0.5
+      }
+    ],
+    "topDomainShare": 0.5,
+    "topThreeShare": 1,
+    "ownerCount": 2,
+    "topOwnerShare": 0.5,
+    "topTenOwnerShare": 1
   },
   "reports": [
     {
@@ -78,9 +103,9 @@
             "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
             "method": "POST",
             "status": 400,
-            "latencyMs": 861
+            "latencyMs": 890
           },
-          "observedAt": "2026-09-12T18:03:01.707Z"
+          "observedAt": "2026-09-12T18:18:10.308Z"
         },
         {
           "id": "P3",
@@ -88,7 +113,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.568Z"
+          "observedAt": "2026-09-12T18:18:11.199Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-1",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 4,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:11.199Z"
         },
         {
           "id": "P4",
@@ -108,8 +152,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.568Z",
-      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     379\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 1214ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.568Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:11.199Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     379\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 1214ms (SSE stream; latency is time-to-headers)\n  ✓ P5  domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:11.199Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -181,9 +225,9 @@
             "endpoint": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
             "method": "POST",
             "status": 400,
-            "latencyMs": 860
+            "latencyMs": 870
           },
-          "observedAt": "2026-09-12T18:03:01.714Z"
+          "observedAt": "2026-09-12T18:18:10.316Z"
         },
         {
           "id": "P3",
@@ -191,7 +235,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.574Z"
+          "observedAt": "2026-09-12T18:18:11.186Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-1",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 4,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:11.186Z"
         },
         {
           "id": "P4",
@@ -211,8 +274,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.574Z",
-      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TokenResolverAgent/\nAGENT     413\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 313ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.574Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:11.186Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TokenResolverAgent/\nAGENT     413\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 313ms (SSE stream; latency is time-to-headers)\n  ✓ P5  domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:11.186Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -284,9 +347,9 @@
             "endpoint": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
             "method": "POST",
             "status": 400,
-            "latencyMs": 855
+            "latencyMs": 841
           },
-          "observedAt": "2026-09-12T18:03:01.715Z"
+          "observedAt": "2026-09-12T18:18:10.316Z"
         },
         {
           "id": "P3",
@@ -294,7 +357,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.570Z"
+          "observedAt": "2026-09-12T18:18:11.157Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-1",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 4,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:11.157Z"
         },
         {
           "id": "P4",
@@ -314,8 +396,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.570Z",
-      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TrendingTokenAgent\nAGENT     414\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 318ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.570Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:11.157Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TrendingTokenAgent\nAGENT     414\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 318ms (SSE stream; latency is time-to-headers)\n  ✓ P5  domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:11.157Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -387,9 +469,9 @@
             "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
             "method": "POST",
             "status": 400,
-            "latencyMs": 834
+            "latencyMs": 872
           },
-          "observedAt": "2026-09-12T18:03:01.715Z"
+          "observedAt": "2026-09-12T18:18:10.317Z"
         },
         {
           "id": "P3",
@@ -397,7 +479,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.549Z"
+          "observedAt": "2026-09-12T18:18:11.189Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-1",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 4,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:11.189Z"
         },
         {
           "id": "P4",
@@ -417,8 +518,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.549Z",
-      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     415\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 305ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.549Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:11.189Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     415\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 305ms (SSE stream; latency is time-to-headers)\n  ✓ P5  domain-1 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:11.189Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -488,9 +589,9 @@
             "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
             "method": "POST",
             "status": 403,
-            "latencyMs": 328
+            "latencyMs": 344
           },
-          "observedAt": "2026-09-12T18:03:01.715Z"
+          "observedAt": "2026-09-12T18:18:10.317Z"
         },
         {
           "id": "P3",
@@ -498,7 +599,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.043Z"
+          "observedAt": "2026-09-12T18:18:10.661Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-2",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 2,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:10.661Z"
         },
         {
           "id": "P4",
@@ -518,8 +638,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.044Z",
-      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.044Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:10.661Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n  ✓ P5  domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:10.661Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -589,9 +709,9 @@
             "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
             "method": "POST",
             "status": 403,
-            "latencyMs": 324
+            "latencyMs": 342
           },
-          "observedAt": "2026-09-12T18:03:01.715Z"
+          "observedAt": "2026-09-12T18:18:10.317Z"
         },
         {
           "id": "P3",
@@ -599,7 +719,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.039Z"
+          "observedAt": "2026-09-12T18:18:10.659Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-2",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 2,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:10.659Z"
         },
         {
           "id": "P4",
@@ -619,8 +758,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.039Z",
-      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/mcp.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.039Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:10.659Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/mcp.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n  ✓ P5  domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:10.659Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -690,9 +829,9 @@
             "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
             "method": "POST",
             "status": 403,
-            "latencyMs": 343
+            "latencyMs": 327
           },
-          "observedAt": "2026-09-12T18:03:01.716Z"
+          "observedAt": "2026-09-12T18:18:10.317Z"
         },
         {
           "id": "P3",
@@ -700,7 +839,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.059Z"
+          "observedAt": "2026-09-12T18:18:10.645Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-2",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 2,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:10.645Z"
         },
         {
           "id": "P4",
@@ -720,8 +878,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.059Z",
-      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.059Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:10.645Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n  ✓ P5  domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:10.645Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -791,9 +949,9 @@
             "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
             "method": "POST",
             "status": 403,
-            "latencyMs": 313
+            "latencyMs": 371
           },
-          "observedAt": "2026-09-12T18:03:01.716Z"
+          "observedAt": "2026-09-12T18:18:10.317Z"
         },
         {
           "id": "P3",
@@ -801,7 +959,26 @@
           "summary": "no quote to compare",
           "skippedReason": "P2 did not obtain a valid quote",
           "evidence": {},
-          "observedAt": "2026-09-12T18:03:02.029Z"
+          "observedAt": "2026-09-12T18:18:10.688Z"
+        },
+        {
+          "id": "P5",
+          "outcome": "pass",
+          "summary": "domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)",
+          "evidence": {
+            "domain": "domain-2",
+            "endpointsOnDomain": 4,
+            "agentsOnDomain": 2,
+            "shareOfShortlist": 0.5,
+            "shortlistEndpoints": 8,
+            "shortlistDomains": 2,
+            "topDomainShare": 0.5,
+            "topThreeShare": 1,
+            "threshold": 0.5,
+            "ownerCount": 2,
+            "topTenOwnerShare": 1
+          },
+          "observedAt": "2026-09-12T18:18:10.688Z"
         },
         {
           "id": "P4",
@@ -821,8 +998,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T18:03:02.030Z",
-      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/mcp.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.030Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:18:10.688Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/mcp.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n  ✓ P5  domain-2 accounts for 50% of the 8 declared endpoints in this shortlist (2 domains total)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:18:10.688Z. Findings, not accusations — see METHODOLOGY.md."
     }
   ]
 }

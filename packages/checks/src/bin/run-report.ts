@@ -12,6 +12,7 @@ import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildReport, renderReport, renderOneLine } from '../report.js';
 import { checkQuote, checkPriceConsistency, extractAdvertisedPrice } from '../checks/p2-quote.js';
+import { computeConcentration, checkConcentration, anonymiseDomains } from '../checks/p5-concentration.js';
 import type { CheckResult } from '../types.js';
 
 const REPO = resolve(import.meta.dirname, '../../../..');
@@ -44,6 +45,20 @@ const anonId = (url: string) => {
   return ids.get(host)!;
 };
 
+// P5 is a property of the whole shortlist, so compute it once over the corpus.
+// Owner comes from the scan, not the liveness round.
+const ownerByAgent = new Map<string, string | null>(
+  scan.results.map((r: any) => [r.agentId, r.owner ?? null]),
+);
+const concentration = computeConcentration({
+  endpoints: rows.map((r) => ({
+    agentId: r.agentId,
+    url: r.url,
+    owner: ownerByAgent.get(r.agentId) ?? null,
+  })),
+});
+const domainLabels = anonymiseDomains(concentration);
+
 // services[] per agent, so P3 can look for an advertised price.
 const servicesByAgent = new Map<string, Record<string, unknown>[]>(
   scan.results.map((r: any) => [r.agentId, r.services ?? []]),
@@ -61,6 +76,14 @@ const reports = await Promise.all(rows.map(async (row) => {
     (s) => (s as any)?.endpoint === row.url,
   );
   checks.push(checkPriceConsistency(quote, extractAdvertisedPrice(service)));
+
+  // P5: how much of the shortlist is this endpoint's domain?
+  checks.push(
+    checkConcentration(row.url, concentration, {
+      anonymise: !showHosts,
+      labels: domainLabels,
+    }),
+  );
 
   // P4/A1 are not run against third parties: P4 spends money and needs a 402
   // quote we have not solicited; A1 is Group A and fenced entirely.
@@ -93,6 +116,16 @@ for (const { report, opts } of reports) {
   console.log('─'.repeat(72));
 }
 
+console.log('\nP5 — SHORTLIST CONCENTRATION');
+console.log(`  ${concentration.endpointCount} declared endpoints across ${concentration.domainCount} domain(s), ${concentration.agentCount} agents`);
+for (const [i, d] of concentration.byDomain.entries()) {
+  const name = showHosts ? d.domain : (domainLabels.get(d.domain) ?? `domain-${i + 1}`);
+  console.log(`    ${name.padEnd(12)} ${d.endpoints} endpoints, ${d.agents} agents  ${(d.share * 100).toFixed(0)}%`);
+}
+console.log(`  top domain: ${(concentration.topDomainShare * 100).toFixed(1)}%   top 3: ${(concentration.topThreeShare * 100).toFixed(1)}%`);
+console.log(`  owners: ${concentration.ownerCount}   top owner: ${(concentration.topOwnerShare * 100).toFixed(1)}%   top 10: ${(concentration.topTenOwnerShare * 100).toFixed(1)}%`);
+console.log(`  (Paper 1 comparator: 13,760 endpoints / 420 domains, top domain 77.5%, top nine 87.8%)`);
+
 console.log('\nSUMMARY');
 for (const { report, opts } of reports) console.log('  ' + renderOneLine(report, opts));
 
@@ -115,6 +148,7 @@ writeFileSync(
       sourceLiveness: p1File.replace(REPO + '/', ''),
       anonymised: !showHosts,
       verdictCounts: counts,
+      concentration,
       reports: reports.map(({ report, opts }) => ({
         ...report,
         rendered: renderReport(report, opts),
