@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types src/**/*.test.ts",
     "p4": "tsx src/bin/run-p4.ts",
-    "a1": "tsx src/bin/run-a1.ts"
+    "a1": "tsx src/bin/run-a1.ts",
+    "p1": "tsx src/bin/run-p1.ts",
+    "report": "tsx src/bin/run-report.ts"
   },
   "dependencies": {
     "@x402/core": "~2.25.0",

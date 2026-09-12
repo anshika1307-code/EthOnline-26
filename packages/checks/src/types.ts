@@ -42,7 +42,13 @@ export function deriveVerdict(checks: CheckResult[]): Verdict {
 
   if (by('P2')?.outcome === 'fail' || by('P3')?.outcome === 'fail') return 'CAUTION';
 
-  if (ran.every((c) => c.outcome === 'pass' || c.outcome === 'warn')) return 'SAFE';
+  const allGood = ran.every((c) => c.outcome === 'pass' || c.outcome === 'warn');
+
+  // SAFE is a claim about paying, so it requires the delivery check to have
+  // actually run and passed. An endpoint that merely answers a GET is alive,
+  // not proven safe to pay — reporting that as SAFE would overclaim, which
+  // ETHICS.md §6 forbids. Alive-but-unpaid-for is UNKNOWN.
+  if (allGood) return by('P4')?.outcome === 'pass' ? 'SAFE' : 'UNKNOWN';
 
   return 'UNKNOWN';
 }
