@@ -30,5 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "packages/registry", "testbed"]
+  "//exclude": "Workspaces have their own tsconfig with a modern target. Excluded wholesale rather than one by one — listing them individually silently broke `next build` each time a new package was added (BigInt literals vs this file's ES2017 target).",
+  "exclude": ["node_modules", "packages", "testbed"]
 }

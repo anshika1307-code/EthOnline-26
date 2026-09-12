@@ -164,6 +164,38 @@ stream on someone else's server.
 A `pass` therefore means "answered with a 2xx in every attempt", and for SSE
 endpoints the reported latency is explicitly labelled as time-to-headers.
 
+## P2 (quote validity) and P3 (price consistency)
+
+P2 makes one unauthenticated request and checks the answer is a usable x402
+quote: HTTP 402, a decodable `PAYMENT-REQUIRED` header (or JSON body), a
+non-empty `accepts[]`, and required fields `scheme`, `network`, `amount`,
+`asset`, `payTo`, with `amount` an integer in atomic units.
+
+The probe method is recorded alongside the result. A `400`/`405` from a
+GET-only resource is not the same finding as a refusal to quote, and the
+reader has to be able to tell them apart.
+
+`warn` (not `fail`) when the endpoint simply isn't paywalled — that is a fact
+about the endpoint, not a defect in it.
+
+### P3 rarely runs, and that is the finding
+
+P3 compares the quoted price against the price advertised in the agent's
+ERC-8004 registration. **The registration schema has no price field** —
+`services[]` entries are `{name, endpoint, version}` — so unless an agent adds
+something non-standard, there is nothing to compare against. In our 500-agent
+sample, no agent published a machine-readable price.
+
+We deliberately do **not** parse a price out of the free-text `description`.
+Guessing a number from prose and then publishing a "4x mismatch" against it
+would be an unfounded accusation (ETHICS.md §6). Absent a structured price,
+P3 reports `skipped` with that reason.
+
+This is worth stating plainly in the write-up: **an agent cannot currently
+advertise its price on-chain in a way a buyer's software can check.** Price
+consistency is unverifiable by construction, not because agents are hiding
+anything.
+
 ## P4 (delivery) — and why settlement phase decides the result
 
 P4 makes one ordinary payment and checks whether the resource comes back.

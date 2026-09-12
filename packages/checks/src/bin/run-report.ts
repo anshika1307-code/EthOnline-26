@@ -11,6 +11,7 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildReport, renderReport, renderOneLine } from '../report.js';
+import { checkQuote, checkPriceConsistency, extractAdvertisedPrice } from '../checks/p2-quote.js';
 import type { CheckResult } from '../types.js';
 
 const REPO = resolve(import.meta.dirname, '../../../..');
@@ -43,8 +44,23 @@ const anonId = (url: string) => {
   return ids.get(host)!;
 };
 
-const reports = rows.map((row) => {
+// services[] per agent, so P3 can look for an advertised price.
+const servicesByAgent = new Map<string, Record<string, unknown>[]>(
+  scan.results.map((r: any) => [r.agentId, r.services ?? []]),
+);
+
+const reports = await Promise.all(rows.map(async (row) => {
   const checks: CheckResult[] = [row.check];
+
+  // P2: ask what it charges, without paying. One request, passive.
+  const { check: p2, quote } = await checkQuote(row.url);
+  checks.push(p2);
+
+  // P3: compare that quote to any advertised price in the registration.
+  const service = (servicesByAgent.get(row.agentId) ?? []).find(
+    (s) => (s as any)?.endpoint === row.url,
+  );
+  checks.push(checkPriceConsistency(quote, extractAdvertisedPrice(service)));
 
   // P4/A1 are not run against third parties: P4 spends money and needs a 402
   // quote we have not solicited; A1 is Group A and fenced entirely.
@@ -70,7 +86,7 @@ const reports = rows.map((row) => {
     checks,
   );
   return { row, report, opts: { anonymise: !showHosts, anonymousId: anonId(row.url) } };
-});
+}));
 
 for (const { report, opts } of reports) {
   console.log(renderReport(report, opts));

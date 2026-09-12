@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T12:47:35.158Z",
+  "generatedAt": "2026-09-12T18:03:02.576Z",
   "sourceScan": "data/scan-runs/sepolia-2026-09-11T09-23-54-453Z.json",
   "sourceLiveness": "data/liveness-runs/sepolia-p1-2026-09-12T12-40-37-487Z.json",
   "anonymised": true,
@@ -71,6 +71,26 @@
           "observedAt": "2026-09-12T12:40:22.237Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 400 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+            "method": "POST",
+            "status": 400,
+            "latencyMs": 861
+          },
+          "observedAt": "2026-09-12T18:03:01.707Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.568Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -88,8 +108,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.157Z",
-      "rendered": "ENDPOINT  <endpoint-1>/mcp/agents/TwitterIntelligenceAgent\nAGENT     379\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ✓ P1  responded 3/3, median 1214ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.157Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.568Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     379\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 1214ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.568Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -154,6 +174,26 @@
           "observedAt": "2026-09-12T12:40:26.139Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 400 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+            "method": "POST",
+            "status": 400,
+            "latencyMs": 860
+          },
+          "observedAt": "2026-09-12T18:03:01.714Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.574Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -171,8 +211,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-1>/mcp/agents/TokenResolverAgent/\nAGENT     413\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ✓ P1  responded 3/3, median 313ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.574Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TokenResolverAgent/\nAGENT     413\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 313ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.574Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -237,6 +277,26 @@
           "observedAt": "2026-09-12T12:40:28.778Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 400 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+            "method": "POST",
+            "status": 400,
+            "latencyMs": 855
+          },
+          "observedAt": "2026-09-12T18:03:01.715Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.570Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -254,8 +314,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-1>/mcp/agents/TrendingTokenAgent\nAGENT     414\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ✓ P1  responded 3/3, median 318ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.570Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TrendingTokenAgent\nAGENT     414\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 318ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.570Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -320,6 +380,26 @@
           "observedAt": "2026-09-12T12:40:30.541Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 400 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+            "method": "POST",
+            "status": 400,
+            "latencyMs": 834
+          },
+          "observedAt": "2026-09-12T18:03:01.715Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.549Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -337,8 +417,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-1>/mcp/agents/TwitterIntelligenceAgent\nAGENT     415\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ✓ P1  responded 3/3, median 305ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.549Z",
+      "rendered": "ENDPOINT  <endpoint-2>/mcp/agents/TwitterIntelligenceAgent\nAGENT     415\nCHAIN     ethereum-sepolia\nVERDICT   UNKNOWN — not enough checks completed to judge\n\n  ⚠ P2  no payment quote offered (HTTP 400 to POST, expected 402)\n  ✓ P1  responded 3/3, median 305ms (SSE stream; latency is time-to-headers)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.549Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -401,6 +481,26 @@
           "observedAt": "2026-09-12T12:40:32.270Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 403 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+            "method": "POST",
+            "status": 403,
+            "latencyMs": 328
+          },
+          "observedAt": "2026-09-12T18:03:01.715Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.043Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -418,8 +518,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-2>/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.044Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.044Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -482,6 +582,26 @@
           "observedAt": "2026-09-12T12:40:33.541Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 403 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+            "method": "POST",
+            "status": 403,
+            "latencyMs": 324
+          },
+          "observedAt": "2026-09-12T18:03:01.715Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.039Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -499,8 +619,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-2>/worm-privacy/data-analyst-agent/main/.well-known/mcp.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.039Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/data-analyst-agent/main/.well-known/mcp.json\nAGENT     461\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.039Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -563,6 +683,26 @@
           "observedAt": "2026-09-12T12:40:34.994Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 403 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+            "method": "POST",
+            "status": 403,
+            "latencyMs": 343
+          },
+          "observedAt": "2026-09-12T18:03:01.716Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.059Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -580,8 +720,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-2>/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.059Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.059Z. Findings, not accusations — see METHODOLOGY.md."
     },
     {
       "target": {
@@ -644,6 +784,26 @@
           "observedAt": "2026-09-12T12:40:36.193Z"
         },
         {
+          "id": "P2",
+          "outcome": "warn",
+          "summary": "no payment quote offered (HTTP 403 to POST, expected 402)",
+          "evidence": {
+            "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+            "method": "POST",
+            "status": 403,
+            "latencyMs": 313
+          },
+          "observedAt": "2026-09-12T18:03:01.716Z"
+        },
+        {
+          "id": "P3",
+          "outcome": "skipped",
+          "summary": "no quote to compare",
+          "skippedReason": "P2 did not obtain a valid quote",
+          "evidence": {},
+          "observedAt": "2026-09-12T18:03:02.029Z"
+        },
+        {
           "id": "P4",
           "outcome": "skipped",
           "summary": "not attempted",
@@ -661,8 +821,8 @@
         }
       ],
       "activeChecksRun": false,
-      "generatedAt": "2026-09-12T12:47:35.158Z",
-      "rendered": "ENDPOINT  <endpoint-2>/worm-privacy/stealth-coordinator/main/.well-known/mcp.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T12:47:35.158Z. Findings, not accusations — see METHODOLOGY.md."
+      "generatedAt": "2026-09-12T18:03:02.030Z",
+      "rendered": "ENDPOINT  <endpoint-1>/worm-privacy/stealth-coordinator/main/.well-known/mcp.json\nAGENT     462\nCHAIN     ethereum-sepolia\nVERDICT   DEAD — endpoint did not respond\n\n  ✗ P1  answered but never successfully: HTTP 404, 404, 404 across 3 attempts\n  ⚠ P2  no payment quote offered (HTTP 403 to POST, expected 402)\n\n  Checks A1 not run: third-party endpoint, passive mode only.\n  – P3  not run: P2 did not obtain a valid quote\n  – P4  not run: no payment attempted against a third-party endpoint in this round\n\n  Checked 2026-09-12T18:03:02.030Z. Findings, not accusations — see METHODOLOGY.md."
     }
   ]
 }
