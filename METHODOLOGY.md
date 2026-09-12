@@ -120,6 +120,55 @@ excludes non-URL endpoint kinds the spec allows (ENS names, DIDs, email
 addresses, raw `ipfs://` service pointers) since "payable service endpoint"
 implies something reachable over HTTP.
 
+## P4 (delivery) — and why settlement phase decides the result
+
+P4 makes one ordinary payment and checks whether the resource comes back.
+Running it against our own testbed surfaced something that changes how the
+result must be read.
+
+x402 lets a server choose **when** settlement happens relative to the handler
+(`extra.paymentFlow`): `authorization` (the default — settle *after* the
+handler succeeds) or `upfront` (settle *before* the handler runs).
+
+That distinction decides whether a failing endpoint actually costs the buyer
+anything:
+
+| Server config | Handler 500s | Did the buyer pay? | P4 outcome |
+|---|---|---|---|
+| `authorization` (default) | yes | **no** — settlement never fires | `warn` |
+| `upfront` | yes | **yes** — money already moved | `fail` |
+
+We confirmed both on Hedera testnet against our own endpoints, checking the
+mirror node rather than trusting the response:
+
+- Default flow, handler 500s → **no transaction on chain**. Nothing was lost.
+- `upfront`, handler 500s → `CRYPTOTRANSFER SUCCESS`, 1,000,000 tinybar moved
+  from the payer to `payTo`, and the response was `HTTP 500 {"error":"internal
+  error"}` with no resource. That is paid-but-denied, on chain.
+
+So **"endpoint returned an error" is not by itself the failure the papers
+describe.** The failure is an error *after* settlement. P4 reports `fail` only
+when a settlement receipt exists, and `warn` when the request failed without
+one — those are different findings and are not merged.
+
+A consequence worth stating: a naive x402 server on the default flow is
+*safer* than it looks, because its errors are free. The dangerous
+configuration is the one that takes the money first.
+
+### Reporting the amount honestly
+
+P4 records the amount from the payment requirements the client actually signed
+against (captured via `onAfterPaymentCreation`), not from our own spend cap.
+An earlier version printed the cap, which would have published a number we
+never observed — see ETHICS.md §6.
+
+### Spend controls
+
+The per-payment cap is enforced by the x402 client before anything is signed
+(`setSpendControls`), so an endpoint quoting above the cap is refused rather
+than paid. Default cap is 2,000,000 tinybar (0.02 HBAR), double the testbed
+price.
+
 ## Known limitations of this pass
 
 - Sample is capped at `MAX_AGENTS` (currently the first N agent IDs from

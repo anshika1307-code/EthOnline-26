@@ -69,7 +69,8 @@ export function createPayingFetch(cfg: P4Config): { fetch: typeof fetch; quote: 
 
 /** Pulls the settlement receipt the server echoes back, if present. */
 function readSettlement(res: Response): Record<string, unknown> | null {
-  const header = res.headers.get('X-PAYMENT-RESPONSE') ?? res.headers.get('payment-response');
+  // v2 is PAYMENT-RESPONSE; X-PAYMENT-RESPONSE is the v1 legacy name.
+  const header = res.headers.get('PAYMENT-RESPONSE') ?? res.headers.get('X-PAYMENT-RESPONSE');
   if (!header) return null;
   try {
     return JSON.parse(Buffer.from(header, 'base64').toString('utf8'));
