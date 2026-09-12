@@ -1,0 +1,40 @@
+Preflight testbed separation run — 2026-09-11T19-57-56Z
+chain: hedera:testnet   payer: 0.0.10475912   payTo: 0.0.10475917
+
+P4 delivery check
+  payer:   0.0.10475912 on hedera:testnet
+  cap:     2000000 tinybars (0.02 HBAR) per payment
+  targets: 2
+
+→ http://localhost:8402/good [our testbed]
+  ✓ P4  paid and received a resource (HTTP 200, 118 bytes, 4165ms)
+     tx: 0.0.7162784@1789156671.599212849
+     network: hedera:testnet
+     evidence: HTTP 200, 118 bytes, 4165ms
+     body: {"ok":true,"route":"good","resource":{"message":"Preflight testbed delivered.","servedAt":"2026-09-11T19:57:58.934Z"}}
+
+→ http://localhost:8402/bad-delivery [our testbed]
+  ✗ P4  paid 1000000 0.0.0 (atomic units), endpoint returned HTTP 500, no resource delivered
+     tx: 0.0.7162784@1789156674.837273422
+     network: hedera:testnet
+     evidence: HTTP 500, 26 bytes, 2786ms
+     body: {"error":"internal error"}
+
+
+A1 replay check  [GROUP A — our own testbed only, see ETHICS.md]
+  payer:   0.0.10475912 on hedera:testnet
+  targets: 3
+
+→ http://localhost:8402/good
+  ✓ A1  replayed payment proof was rejected (HTTP 402)
+     first: HTTP 200   replay: HTTP 402
+     replay body: {}
+
+→ http://localhost:8402/bad-replay
+  ✗ A1  the same payment proof was accepted twice — replaying it returned HTTP 200 with a resource, so one payment buys repeat service (free shopping)
+     first: HTTP 200   replay: HTTP 200
+     replay body: {"ok":true,"route":"bad-replay","resource":{"message":"served again on a reused payment proof","servedAt":"2026-09-11T19:58:12.852Z"},"repla
+
+→ https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent
+  – A1  SKIPPED — Refusing to run active check A1 against "mesh.heurist.xyz": not our testbed. Active checks against third parties are unauthorised testing (see ETHICS.md rule 2).
+

@@ -96,10 +96,13 @@ app.get('/health', (_req, res) => {
  * Implemented as a shim ahead of the payment middleware, because the
  * middleware itself does the right thing and we have to actively defeat it.
  */
+/** x402 v2 payment header. `X-PAYMENT` is v1 and is NOT what the client sends. */
+const PAYMENT_HEADER = 'PAYMENT-SIGNATURE';
+
 const seenProofs = new Set<string>();
 
 function replayShim(req: Request, res: Response, next: NextFunction) {
-  const proof = req.header('X-PAYMENT');
+  const proof = req.header(PAYMENT_HEADER);
   if (proof && seenProofs.has(proof)) {
     res.status(200).json({
       ok: true,
@@ -137,7 +140,7 @@ app.post('/good', (_req, res) => {
 });
 
 app.post('/bad-replay', (req, res) => {
-  const proof = req.header('X-PAYMENT');
+  const proof = req.header(PAYMENT_HEADER);
   if (proof) seenProofs.add(proof); // remembering this is precisely the bug
   res.json({
     ok: true,
