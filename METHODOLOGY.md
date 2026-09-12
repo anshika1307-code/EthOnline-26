@@ -120,6 +120,50 @@ excludes non-URL endpoint kinds the spec allows (ENS names, DIDs, email
 addresses, raw `ipfs://` service pointers) since "payable service endpoint"
 implies something reachable over HTTP.
 
+## Verdict bands
+
+| Condition | Verdict |
+|---|---|
+| P1 failed every round | `DEAD` |
+| P4 failed (paid, nothing delivered) or any A-check failed | `UNSAFE` |
+| P2 or P3 failed | `CAUTION` |
+| Everything that ran passed **and P4 passed** | `SAFE` |
+| Anything else, including "alive but never paid" | `UNKNOWN` |
+
+No score, no weighting. A reader can recompute any verdict by hand from the
+check lines.
+
+**`SAFE` requires P4 to have actually run and passed.** The product question is
+*"is it safe to pay this endpoint"*, so an endpoint that merely answers a `GET`
+is alive, not proven safe to pay — that is `UNKNOWN`. An earlier version
+returned `SAFE` when only P1 had run, which labelled four third-party agents
+safe to pay without ever attempting a payment. That is the kind of overclaim
+ETHICS.md §6 exists to prevent.
+
+Consequence worth stating in the write-up: against third parties we run passive
+checks only and do not spend money, so most third-party verdicts are `DEAD` or
+`UNKNOWN`, never `SAFE`. `SAFE` is reachable on our own testbed, where paying is
+authorised. That asymmetry is honest rather than unfortunate.
+
+## P1 (liveness) — and why latency is measured at the headers
+
+P1 does one `GET` per endpoint per round, three attempts, identifying itself by
+User-Agent, and stops immediately on a 429/403 refusal signal.
+
+**Latency is time-to-response-headers, not time-to-body.** Several real agent
+endpoints in the registry are MCP-over-SSE (`content-type: text/event-stream`)
+and never close the connection. Draining those bodies measures our own timeout,
+not the endpoint's speed — the first version of this check reported a median of
+`10004ms` for four endpoints, which was exactly our 10s abort, not their
+performance. Measured at the headers, the same endpoints return in
+**305–1214ms**.
+
+Streamed bodies are cancelled rather than read, so we do not hold an open
+stream on someone else's server.
+
+A `pass` therefore means "answered with a 2xx in every attempt", and for SSE
+endpoints the reported latency is explicitly labelled as time-to-headers.
+
 ## P4 (delivery) — and why settlement phase decides the result
 
 P4 makes one ordinary payment and checks whether the resource comes back.

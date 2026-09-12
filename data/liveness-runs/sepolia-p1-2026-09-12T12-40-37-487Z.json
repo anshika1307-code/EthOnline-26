@@ -1,0 +1,480 @@
+{
+  "check": "P1",
+  "ranAt": "2026-09-12T12:40:37.487Z",
+  "sourceScan": "data/scan-runs/sepolia-2026-09-11T09-23-54-453Z.json",
+  "chain": "ethereum-sepolia",
+  "agentsSampled": 500,
+  "totalAgentsRegistered": 10229,
+  "endpointsChecked": 8,
+  "endpointsResponding": 4,
+  "endpointsIntermittent": 0,
+  "endpointsDead": 4,
+  "agentsWithLiveEndpoint": 4,
+  "agentsDeclaringEndpoint": 6,
+  "results": [
+    {
+      "agentId": "379",
+      "owner": "0x07D8df3eB2edf8F2Aaf3c70993E6B76e448dB595",
+      "url": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+      "check": {
+        "id": "P1",
+        "outcome": "pass",
+        "summary": "responded 3/3, median 1214ms (SSE stream; latency is time-to-headers)",
+        "evidence": {
+          "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 3,
+          "medianLatencyMs": 1214,
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+          "redirected": false,
+          "contentType": "text/event-stream",
+          "isStream": true,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 1454,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 2,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 1214,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 3,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 426,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:22.237Z"
+      }
+    },
+    {
+      "agentId": "413",
+      "owner": "0x07D8df3eB2edf8F2Aaf3c70993E6B76e448dB595",
+      "url": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+      "check": {
+        "id": "P1",
+        "outcome": "pass",
+        "summary": "responded 3/3, median 313ms (SSE stream; latency is time-to-headers)",
+        "evidence": {
+          "endpoint": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 3,
+          "medianLatencyMs": 313,
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+          "redirected": false,
+          "contentType": "text/event-stream",
+          "isStream": true,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 1234,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 2,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 313,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 3,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 287,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TokenResolverAgent/",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:26.139Z"
+      }
+    },
+    {
+      "agentId": "414",
+      "owner": "0x07D8df3eB2edf8F2Aaf3c70993E6B76e448dB595",
+      "url": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+      "check": {
+        "id": "P1",
+        "outcome": "pass",
+        "summary": "responded 3/3, median 318ms (SSE stream; latency is time-to-headers)",
+        "evidence": {
+          "endpoint": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 3,
+          "medianLatencyMs": 318,
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+          "redirected": false,
+          "contentType": "text/event-stream",
+          "isStream": true,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 309,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 2,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 330,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 3,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 318,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TrendingTokenAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:28.778Z"
+      }
+    },
+    {
+      "agentId": "415",
+      "owner": "0x07D8df3eB2edf8F2Aaf3c70993E6B76e448dB595",
+      "url": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+      "check": {
+        "id": "P1",
+        "outcome": "pass",
+        "summary": "responded 3/3, median 305ms (SSE stream; latency is time-to-headers)",
+        "evidence": {
+          "endpoint": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 3,
+          "medianLatencyMs": 305,
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+          "redirected": false,
+          "contentType": "text/event-stream",
+          "isStream": true,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 305,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 2,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 314,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            },
+            {
+              "attempt": 3,
+              "ok": true,
+              "status": 200,
+              "stream": true,
+              "latencyMs": 304,
+              "finalUrl": "https://mesh.heurist.xyz/mcp/agents/TwitterIntelligenceAgent",
+              "redirected": false,
+              "contentType": "text/event-stream"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:30.541Z"
+      }
+    },
+    {
+      "agentId": "461",
+      "owner": "0xFB493Dc87E4563C27d5A4CebDec8c7dB1B4f27c4",
+      "url": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+      "check": {
+        "id": "P1",
+        "outcome": "fail",
+        "summary": "answered but never successfully: HTTP 404, 404, 404 across 3 attempts",
+        "evidence": {
+          "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 0,
+          "medianLatencyMs": 0,
+          "statuses": [
+            404,
+            404,
+            404
+          ],
+          "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+          "redirected": false,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 368,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 2,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 44,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 3,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 53,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:32.270Z"
+      }
+    },
+    {
+      "agentId": "461",
+      "owner": "0xFB493Dc87E4563C27d5A4CebDec8c7dB1B4f27c4",
+      "url": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+      "check": {
+        "id": "P1",
+        "outcome": "fail",
+        "summary": "answered but never successfully: HTTP 404, 404, 404 across 3 attempts",
+        "evidence": {
+          "endpoint": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 0,
+          "medianLatencyMs": 0,
+          "statuses": [
+            404,
+            404,
+            404
+          ],
+          "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+          "redirected": false,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 440,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 2,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 165,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 3,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 44,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/data-analyst-agent/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:33.541Z"
+      }
+    },
+    {
+      "agentId": "462",
+      "owner": "0xFB493Dc87E4563C27d5A4CebDec8c7dB1B4f27c4",
+      "url": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+      "check": {
+        "id": "P1",
+        "outcome": "fail",
+        "summary": "answered but never successfully: HTTP 404, 404, 404 across 3 attempts",
+        "evidence": {
+          "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 0,
+          "medianLatencyMs": 0,
+          "statuses": [
+            404,
+            404,
+            404
+          ],
+          "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+          "redirected": false,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 301,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 2,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 41,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 3,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 51,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/agent-card.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:34.994Z"
+      }
+    },
+    {
+      "agentId": "462",
+      "owner": "0xFB493Dc87E4563C27d5A4CebDec8c7dB1B4f27c4",
+      "url": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+      "check": {
+        "id": "P1",
+        "outcome": "fail",
+        "summary": "answered but never successfully: HTTP 404, 404, 404 across 3 attempts",
+        "evidence": {
+          "endpoint": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+          "attempts": 3,
+          "answeredCount": 3,
+          "okCount": 0,
+          "medianLatencyMs": 0,
+          "statuses": [
+            404,
+            404,
+            404
+          ],
+          "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+          "redirected": false,
+          "probes": [
+            {
+              "attempt": 1,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 389,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 2,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 46,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            },
+            {
+              "attempt": 3,
+              "ok": false,
+              "status": 404,
+              "stream": false,
+              "latencyMs": 52,
+              "finalUrl": "https://raw.githubusercontent.com/worm-privacy/stealth-coordinator/main/.well-known/mcp.json",
+              "redirected": false,
+              "contentType": "text/plain; charset=utf-8"
+            }
+          ]
+        },
+        "observedAt": "2026-09-12T12:40:36.193Z"
+      }
+    }
+  ]
+}
