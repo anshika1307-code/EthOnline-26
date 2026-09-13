@@ -4,7 +4,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { assertOwnTestbed, isOwnTestbed, NotOurTestbedError } from './guard.js';
+import { assertOwnTestbed, isOwnTestbed, NotOurTestbedError } from './guard';
 
 describe('assertOwnTestbed', () => {
   test('allows localhost (the testbed during development)', () => {

@@ -6,7 +6,7 @@
  * services are unauthorised testing. A comment is not a safeguard, so every
  * Group A check calls assertOwnTestbed() as its first line.
  */
-import type { CheckId } from './types.js';
+import type { CheckId } from './types';
 
 /**
  * Hosts we deployed ourselves. Only these may receive Group A checks.
