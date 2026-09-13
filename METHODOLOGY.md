@@ -115,10 +115,54 @@ evidence of a broken agent.
 ## Extracting service endpoints
 
 `extractServiceEndpointUrls()` reads the spec's `services[]` array and keeps
-only entries whose `endpoint` field matches `^https?://` — this deliberately
-excludes non-URL endpoint kinds the spec allows (ENS names, DIDs, email
-addresses, raw `ipfs://` service pointers) since "payable service endpoint"
-implies something reachable over HTTP.
+only entries that are plausibly **callable and payable**. Three filters, each
+of which materially changes the count:
+
+1. **`http(s)` only.** Excludes non-URL endpoint kinds the spec allows (ENS
+   names, DIDs, email addresses, raw `ipfs://` pointers).
+2. **Not a homepage, social profile or docs link.** Entries named `web`,
+   `twitter`, `x`, `github`, `docs`, `discord`, `telegram`, `email`, `blog`
+   are links about the agent, not services it offers.
+3. **Not unreachable by construction.** Loopback (`localhost`, `127.0.0.1`),
+   RFC 1918 private ranges, `.local`, and RFC 2606 reserved names.
+
+### Why this matters — the count moves by 2.2×
+
+Measured over the full registry (10,249 agents):
+
+| Definition | Endpoints | Agents |
+|---|---|---|
+| Any `http(s)` string in `services[]` | 291 | 184 |
+| …excluding homepage / social / docs | 185 | 118 |
+| …excluding localhost and reserved hosts | **149** | **85** |
+
+92 entries were a `web` homepage. **43 pointed at `localhost`** — a service
+only its own author can reach. 12 pointed at `example.com`.
+
+Counting the loose definition would have reported 184 agents (1.8%) against
+the literature's 67/10,000 (0.67%) — a 2.7× discrepancy that is an artefact of
+counting Twitter links as services. The strict definition gives **85 of 10,249
+(0.83%)**, which corroborates the published figure at full-registry scale
+rather than contradicting it.
+
+Excluded entries remain in the stored `services` array, so the raw claim stays
+inspectable and anyone can recompute with a different definition.
+
+## The IPFS circuit breaker — "not attempted" is not "failed"
+
+Public IPFS gateways refuse this traffic (see below). Re-confirming that for
+every one of ~3,500 `ipfs://` agents would take hours, so after
+`IPFS_CIRCUIT_BREAK_AFTER` consecutive all-gateway failures the scan stops
+attempting IPFS and records the remainder with the reason in the error text.
+
+In the full-registry run, of 1,541 `unknown-gateway-failed`:
+
+- **793 were attempted** and failed against every gateway
+- **748 were never attempted** — the breaker was already open
+
+Both land in the same category because in both cases we do not know what the
+agent declares. But they are different epistemic states, the error text
+distinguishes them, and the 748 must not be read as 748 broken agents.
 
 ## Verdict bands
 
@@ -147,8 +191,32 @@ authorised. That asymmetry is honest rather than unfortunate.
 
 ## P1 (liveness) — and why latency is measured at the headers
 
-P1 does one `GET` per endpoint per round, three attempts, identifying itself by
+P1 probes each endpoint three times per round, identifying itself by
 User-Agent, and stops immediately on a 429/403 refusal signal.
+
+### Three corrections, all of which had made the result worse than reality
+
+Each was caught by a **contradiction between checks** — P2 reporting a valid
+payment quote for an endpoint P1 had just called dead is not a state the world
+can be in. All three biased the finding pessimistically:
+
+1. **Latency measured our own timeout.** Several agent endpoints are MCP-over-
+   SSE (`text/event-stream`) and never close. Draining the body timed out at
+   our 10s abort, reported as `median 10004ms`. Latency is now taken at the
+   response headers, and streamed bodies are cancelled rather than read — real
+   figures are 300–1200ms.
+2. **`GET`-only probing.** Many agent APIs are POST-only and answer a `GET`
+   with 404. A 404/405 now earns one `POST` retry, and the probe records which
+   verb answered. Without this, every x402-capable endpoint in the registry
+   looked dead.
+3. **`402` counted as dead.** Only 2xx was treated as alive. For an x402-gated
+   resource, `402 Payment Required` *is* the correct healthy answer to an
+   unpaid request. `isAlive()` now accepts 2xx **or** 402, and such endpoints
+   report as "402, alive and paywalled".
+
+Corrections 2 and 3 together moved the payable agents from `DEAD` to
+`CAUTION`/`UNKNOWN` — i.e. from "broken" to "working but under-specified",
+which is the truth.
 
 **Latency is time-to-response-headers, not time-to-body.** Several real agent
 endpoints in the registry are MCP-over-SSE (`content-type: text/event-stream`)
@@ -177,6 +245,31 @@ reader has to be able to tell them apart.
 
 `warn` (not `fail`) when the endpoint simply isn't paywalled — that is a fact
 about the endpoint, not a defect in it.
+
+### P2 must be version-aware, or it slanders people
+
+x402 v1 and v2 are not wire-compatible:
+
+| | v1 | v2 |
+|---|---|---|
+| Quote location | response body | `PAYMENT-REQUIRED` header |
+| Amount field | `maxAmountRequired` | `amount` |
+| Payment header | `X-PAYMENT` | `PAYMENT-SIGNATURE` |
+
+The first version of P2 validated v2 field names only. Against the live
+registry it reported **four real third-party agents as returning a quote
+"missing required field(s): amount"**. They were not broken — they were
+correct x402 v1 sellers on Base, and the checker was wrong.
+
+That claim reached a draft of the README before a live re-check caught it. It
+is exactly the failure ETHICS.md §6 exists to prevent: publishing an
+accusation about someone else's service on the strength of our own bug. P2 now
+reads `x402Version` and validates against the matching field set, and reports
+the version in its summary.
+
+The lesson generalises: **a checker that only knows one version of a protocol
+will report everyone else as broken.** Any new check should establish what the
+target claims to speak before judging it.
 
 ### P3 rarely runs, and that is the finding
 
