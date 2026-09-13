@@ -37,6 +37,7 @@ import type { CheckResult } from '../../../packages/checks/src/types';
 import { hcsConfigured, submitReceipt, type Receipt } from './hcs';
 import { MAX_ENDPOINTS, UNIT_TINYBAR, parseCheckRequest, priceForBody, quoteTinybar } from './metering';
 import { runChecks } from './run-checks';
+import { rejectInvalidCheck } from './prevalidate';
 import { createGatewayRouter } from './gateway';
 
 const {
@@ -171,6 +172,9 @@ app.use(
     run: (endpoint, depth) => runChecks(endpoint, depth, 'bazantic-gateway'),
   }),
 );
+
+// Invalid requests get a 400 here, before the paywall would quote them.
+app.post('/check', rejectInvalidCheck);
 
 app.use(
   paymentMiddleware(

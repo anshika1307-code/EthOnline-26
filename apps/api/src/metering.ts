@@ -78,9 +78,10 @@ export function quoteTinybar(req: CheckRequest): bigint {
 
 /**
  * Price for the x402 middleware, which must return *something* even for a
- * body it cannot parse. An invalid request is quoted at one full unit; the
- * handler then rejects it with 400, and on the default authorization flow a
- * failed handler cancels settlement — so nothing is charged.
+ * body it cannot parse. Invalid bodies are normally stopped with a 400 before
+ * the paywall (./prevalidate.ts); if one ever got through, it would be quoted
+ * at one full unit, the handler would still 400, and on the default
+ * authorization flow a failed handler cancels settlement — nothing charged.
  */
 export function priceForBody(body: unknown): string {
   const parsed = parseCheckRequest(body);
