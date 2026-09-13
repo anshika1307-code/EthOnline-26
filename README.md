@@ -281,6 +281,7 @@ npm run a1 -- http://localhost:8402/good http://localhost:8402/bad-replay
 | [`PRIOR_ART.md`](./PRIOR_ART.md) | What exists, what we take, what is ours |
 | [`ATTRIBUTION.md`](./ATTRIBUTION.md) | New work vs reused |
 | [`AI_USAGE.md`](./AI_USAGE.md) | AI disclosure, and the corrections review caught |
+| [`DEPLOY.md`](./DEPLOY.md) | How to host it, and what breaks if you don't read it |
 | [`docs/findings.md`](./docs/findings.md) | **The published dataset writeup** — findings, method, limitations, citation |
 | [`HEDERA_FEEDBACK.md`](./HEDERA_FEEDBACK.md) | Friction log, written live |
 | `data/**` | Every raw scan, liveness round and report |
