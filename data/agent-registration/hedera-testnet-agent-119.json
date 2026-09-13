@@ -1,0 +1,40 @@
+{
+  "agent": "Preflight",
+  "network": "hedera:testnet",
+  "chainId": 296,
+  "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "agentId": 119,
+  "owner": {
+    "evmAddress": "0xf36e67653c38667435c5f995C0B120d3954D1c21",
+    "hederaAccount": "0.0.10475912",
+    "keyType": "ECDSA_SECP256K1"
+  },
+  "transactions": [
+    {
+      "step": "register(agentURI)",
+      "hash": "0xe10a31b584a0cf2dbfacd71b21482359416c7bba183d63b19083a4621882f99c",
+      "block": 40455181,
+      "gasUsed": 707429,
+      "result": "SUCCESS",
+      "hashscan": "https://hashscan.io/testnet/transaction/0xe10a31b584a0cf2dbfacd71b21482359416c7bba183d63b19083a4621882f99c"
+    },
+    {
+      "step": "setAgentURI(119, …) — fills registrations[] now the id is known",
+      "hash": "0xd4e14ff0757e158d97cd77c6aa4d059b56cedb0ee1671f8e3d8c65746849e0fc",
+      "result": "SUCCESS",
+      "hashscan": "https://hashscan.io/testnet/transaction/0xd4e14ff0757e158d97cd77c6aa4d059b56cedb0ee1671f8e3d8c65746849e0fc"
+    }
+  ],
+  "verifiedBy": [
+    "ownerOf(119) via raw eth_call returns the signer",
+    "tokenURI(119) decodes to a well-formed ERC-8004 registration-v1 file",
+    "mirror node reports result SUCCESS for the register transaction",
+    "registrations[] contains { agentId: 119, agentRegistry: eip155:296:0x8004A818… } after setAgentURI"
+  ],
+  "selfAssessment": {
+    "classifier": "packages/registry/src/fetch-agents.ts (extractServiceEndpointUrls + classify)",
+    "category": "confirmed-no-endpoint",
+    "why": "Preflight currently declares only a `web` link (the source repo). By the same rule applied to all 10,249 Sepolia agents, a homepage is not a callable service, and the paid API is not yet hosted. No exception was made for our own entry.",
+    "toBecomeCallable": "deploy apps/api, then: npx tsx scripts/register-agent.ts --update 119 --endpoint https://<host> --send"
+  }
+}
