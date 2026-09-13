@@ -251,6 +251,12 @@ npm run a1 -- http://localhost:8402/good http://localhost:8402/bad-replay
 - Real paid requests end-to-end, buyer side:
   [`packages/checks/src/checks/p4-delivery.ts`](./packages/checks/src/checks/p4-delivery.ts)
 - Three x402 endpoints of our own: [`testbed/src/server.ts`](./testbed/src/server.ts)
+- **Preflight is itself registered as ERC-8004 agent #119 on Hedera testnet** —
+  [tx](https://hashscan.io/testnet/transaction/0xe10a31b584a0cf2dbfacd71b21482359416c7bba183d63b19083a4621882f99c),
+  registration stored fully on-chain as a base64 `data:` URI. Run through our
+  own classifier it currently rates `confirmed-no-endpoint`, because the paid
+  API is not yet hosted. We made no exception for our own entry.
+  Evidence: [`data/agent-registration/`](./data/agent-registration/)
 - On-chain agent identity via **ERC-8004**, read directly from the registry:
   [`packages/registry/src/fetch-agents.ts`](./packages/registry/src/fetch-agents.ts)
 - **Harness contribution**: PR correcting the x402 v1/v2 payment header in

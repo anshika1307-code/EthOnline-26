@@ -33,6 +33,7 @@ import { checkLiveness } from '../../../packages/checks/src/checks/p1-liveness';
 import { checkQuote, checkPriceConsistency } from '../../../packages/checks/src/checks/p2-quote';
 import { buildReport, renderReport } from '../../../packages/checks/src/report';
 import type { CheckResult } from '../../../packages/checks/src/types';
+import { hcsConfigured, submitReceipt, type Receipt } from './hcs';
 
 const {
   HEDERA_RECEIVER_ACCOUNT_ID,
@@ -52,16 +53,67 @@ if (!HEDERA_RECEIVER_ACCOUNT_ID) {
 
 const resourceServer = new x402ResourceServer(
   new HTTPFacilitatorClient({ url: FACILITATOR_URL, timeoutMs: Number(FACILITATOR_TIMEOUT_MS) }),
-).register(
-  'hedera:*',
-  new ExactHederaScheme({ defaultAssets: { [HEDERA_NETWORK]: { asset: HBAR_ASSET, decimals: 8 } } }),
-);
+)
+  .register(
+    'hedera:*',
+    new ExactHederaScheme({ defaultAssets: { [HEDERA_NETWORK]: { asset: HBAR_ASSET, decimals: 8 } } }),
+  )
+  /**
+   * Write the audit receipt only AFTER the payment has actually settled, so a
+   * receipt on HCS always corresponds to money that moved. The hook sees both
+   * the settlement and the handler's response body, which is the report.
+   */
+  .onAfterSettle(async (ctx) => {
+    if (!hcsConfigured() || !ctx.result.success) return;
+    try {
+      const transport = ctx.transportContext as { responseBody?: Buffer } | undefined;
+      const report = transport?.responseBody ? JSON.parse(transport.responseBody.toString('utf8')) : null;
+      if (!report?.target) return; // not a /check response
+
+      const req = ctx.requirements as unknown as Record<string, string>;
+      const receipt: Receipt = {
+        type: 'preflight.receipt.v1',
+        checked: report.target.endpoint ?? '',
+        verdict: report.verdict,
+        checks: Object.fromEntries((report.checks ?? []).map((c: CheckResult) => [c.id, c.outcome])),
+        payment: {
+          payer: ctx.result.payer ?? null,
+          amount: ctx.result.amount ?? req.amount ?? null,
+          asset: req.asset ?? null,
+          payTo: req.payTo ?? null,
+          network: ctx.result.network,
+          settlement: ctx.result.transaction,
+        },
+        at: new Date().toISOString(),
+      };
+      const written = await submitReceipt(receipt);
+      if (written) {
+        console.log(`  receipt → HCS ${process.env.HCS_TOPIC_ID} seq ${written.sequence} (settlement ${ctx.result.transaction})`);
+      }
+    } catch (err) {
+      // The buyer already paid and already has their report. A receipt failure
+      // is ours to fix, not theirs to suffer, so it never fails the request.
+      console.error('  HCS receipt write failed:', err instanceof Error ? err.message : err);
+    }
+  });
 
 const app = express();
 app.use(express.json({ limit: '8kb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'preflight', network: HEDERA_NETWORK });
+});
+
+app.get('/receipts', (_req, res) => {
+  const topic = process.env.HCS_TOPIC_ID;
+  if (!topic) return res.status(404).json({ error: 'HCS audit trail not configured' });
+  res.json({
+    topic,
+    format: 'preflight.receipt.v1',
+    note: 'One message per settled check. Only our submit key can write, so receipts cannot be forged.',
+    verify: `https://testnet.mirrornode.hedera.com/api/v1/topics/${topic}/messages`,
+    explorer: `https://hashscan.io/testnet/topic/${topic}`,
+  });
 });
 
 app.get('/pricing', (_req, res) => {
@@ -135,4 +187,5 @@ app.listen(Number(PORT), () => {
   console.log(`  GET  /health   free`);
   console.log(`  GET  /pricing  free`);
   console.log(`  POST /check    ${PRICE_TINYBAR} tinybar -> payTo ${HEDERA_RECEIVER_ACCOUNT_ID}`);
+  console.log(`  GET  /receipts ${hcsConfigured() ? `HCS audit trail on ${process.env.HCS_TOPIC_ID}` : 'HCS not configured'}`);
 });
