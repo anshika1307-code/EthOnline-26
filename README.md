@@ -7,6 +7,24 @@ endpoint is alive, honestly priced, and actually delivers.**
 
 ETHOnline 2026 · Start Fresh track · solo
 
+## Live
+
+| | |
+|---|---|
+| Dashboard + free passive scan | https://eth-online-26.vercel.app |
+| Paid API (x402 on Hedera testnet, Blocky402) | https://ethonline-26.onrender.com — `GET /pricing`, `GET /receipts`, `POST /check` |
+| Testbed (our own endpoints, the only target of active checks) | https://testbed-1l2m.onrender.com |
+| On-chain identity | ERC-8004 agent **#119** on Hedera testnet, registry `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
+| Payment audit trail | HCS topic [`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901) |
+
+End to end, with nothing hard-coded: the buyer agent reads agent #119 from the
+registry, finds the x402 service in its registration file, pays for a check,
+decides whether to pay the target, and points at the HCS receipt.
+
+```bash
+cd packages/checks && npx tsx src/bin/buyer-agent.ts https://testbed-1l2m.onrender.com/good
+```
+
 ---
 
 ## The problem
@@ -202,7 +220,37 @@ endpoint one real, legitimate payment and verifies the resource comes back.
 A hard per-payment spend cap is enforced by the x402 client *before anything is
 signed*.
 
-Price: **100,000 tinybar (0.001 HBAR)** per check. HBAR is asset `0.0.0` and
+### Metered, not flat
+
+The price is the work: `amount = unit(depth) × distinct endpoints`, up to 10 per request.
+
+| depth | runs | tinybar per endpoint |
+|---|---|---|
+| `full` (default) | P1 + P2 + P3 | 100,000 (0.001 HBAR) |
+| `liveness` | P1 only | 40,000 |
+
+```bash
+POST /check { "endpoint": "https://..." }                                    # 100,000
+POST /check { "endpoints": ["https://a", "https://b", "https://c"],
+              "depth": "liveness" }                                          # 120,000
+```
+
+The 402 quote is computed from the request body, and the paid retry is
+re-priced from *its* body with the same parser ([apps/api/src/metering.ts](apps/api/src/metering.ts)).
+So a payment signed for one endpoint can't be used for ten. We tested that
+against the running server on testnet:
+
+| request | quoted | result |
+|---|---|---|
+| 1 endpoint, full | 100,000 | paid, settled `0.0.7162784@1789295746.951052963` (mirror node: −100,000 / +100,000) |
+| 3 endpoints, liveness | 120,000 | paid, settled `0.0.7162784@1789295758.705983867` (mirror node: −120,000 / +120,000), HCS receipt seq 10 records the meter |
+| signature for the 1-endpoint quote, replayed with a 5-endpoint body | re-quoted 500,000 | **402 `No matching payment requirements`, nothing settled** |
+| same signature, original 1-endpoint body (control) | 100,000 | paid, settled `0.0.7162784@1789295819.841622433` |
+
+The control row matters: it shows the attack was refused because of the price
+mismatch, not because the signature was bad.
+
+`GET /pricing` returns the formula, units and cap. HBAR is asset `0.0.0` and
 amounts are in tinybars (1 HBAR = 10⁸).
 
 ## Run it

@@ -57,7 +57,6 @@ settle real payments through Blocky402.
 | `HEDERA_RECEIVER_ACCOUNT_ID` | your receiving account, e.g. `0.0.10475917` |
 | `FACILITATOR_URL` | `https://api.testnet.blocky402.com` |
 | `HEDERA_NETWORK` | `hedera:testnet` |
-| `PRICE_TINYBAR` | `100000` (0.001 HBAR) |
 
 `PORT` is injected by the host and the app honours it.
 
@@ -69,7 +68,6 @@ docker run -p 8403:8403 \
   -e HEDERA_RECEIVER_ACCOUNT_ID=0.0.xxxxxxx \
   -e FACILITATOR_URL=https://api.testnet.blocky402.com \
   -e HEDERA_NETWORK=hedera:testnet \
-  -e PRICE_TINYBAR=100000 \
   preflight-api
 ```
 
@@ -96,7 +94,7 @@ receipt cannot be forged. Create a new topic with `npx tsx src/create-topic.ts -
 docker build -f testbed/Dockerfile -t preflight-testbed .
 ```
 
-Same env vars as the API except `PRICE_TINYBAR=1000000` (0.01 HBAR) and
+Same env vars as the API, plus `PRICE_TINYBAR=1000000` (0.01 HBAR — the testbed is flat-priced on purpose), and
 Dockerfile path `testbed/Dockerfile`. Context is the repo root for consistency,
 though the testbed has no cross-package imports.
 
@@ -136,7 +134,7 @@ Our own entry should then pass our own checks — worth showing on video.
 API=https://your-api.onrender.com
 
 curl -s $API/health                                    # {"ok":true,...}
-curl -s $API/pricing | jq .                            # price + what it never runs
+curl -s $API/pricing | jq .                            # metered formula + what it never runs
 curl -s -o /dev/null -w '%{http_code}\n' \
   -X POST $API/check -H 'content-type: application/json' \
   -d '{"endpoint":"https://example.com"}'              # expect 402

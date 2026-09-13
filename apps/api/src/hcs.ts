@@ -18,6 +18,8 @@ export type Receipt = {
   checked: string;
   verdict: string;
   checks: Record<string, string>;
+  /** What was metered: depth, endpoint count, per-unit and total tinybar. */
+  meter?: { depth: string; endpoints: number; unitTinybar: string; amountTinybar: string };
   payment: {
     payer: string | null;
     amount: string | null;
@@ -58,8 +60,15 @@ export function encodeReceipt(receipt: Receipt): string {
   body = JSON.stringify(trimmed);
   if (Buffer.byteLength(body) <= MAX_BYTES) return body;
 
-  const minimal = { ...trimmed, checks: {} };
-  return JSON.stringify(minimal).slice(0, MAX_BYTES);
+  // Still too big (a batch of long URLs): keep the payment and meter, which are
+  // what make the receipt verifiable, and cut `checked` to fit. Slicing the
+  // serialised JSON instead would write an unparseable message.
+  const minimal: Receipt = { ...trimmed, checks: {} };
+  const overflow = Buffer.byteLength(JSON.stringify({ ...minimal, checked: '' })) - MAX_BYTES;
+  const room = Math.max(0, -overflow - 3);
+  minimal.checked = trimmed.checked.slice(0, room) + (room < trimmed.checked.length ? '...' : '');
+  minimal.verdict = minimal.verdict.slice(0, 120);
+  return JSON.stringify(minimal);
 }
 
 export async function submitReceipt(receipt: Receipt): Promise<{ sequence: string; txId: string } | null> {
