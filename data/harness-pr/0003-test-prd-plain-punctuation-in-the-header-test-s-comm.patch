@@ -1,0 +1,35 @@
+From 96d7516d71e185fb971637f96724d0d255783414 Mon Sep 17 00:00:00 2001
+From: anshika-1307code <anshika1307goyal@gmail.com>
+Date: Sun, 13 Sep 2026 12:33:38 +0530
+Subject: [PATCH 3/3] test(prd): plain punctuation in the header test's comment
+ and failure message
+
+---
+ test/prd-x402-headers.test.mjs | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/prd-x402-headers.test.mjs b/test/prd-x402-headers.test.mjs
+index 1e2c53e..3d0536f 100644
+--- a/test/prd-x402-headers.test.mjs
++++ b/test/prd-x402-headers.test.mjs
+@@ -5,7 +5,7 @@ import test from "node:test";
+ 
+ // x402 v1 and v2 are not wire-compatible, and the difference is invisible at
+ // runtime: a v2 resource server reads `PAYMENT-SIGNATURE` and simply does not
+-// look at `X-PAYMENT`, so a client sending the v1 header gets no error — the
++// look at `X-PAYMENT`, so a client sending the v1 header gets no error. The
+ // request is just treated as unpaid. A PRD that names the v1 header while
+ // specifying v2 packages sends the agent down that path deliberately.
+ //
+@@ -47,7 +47,7 @@ test("a PRD that specifies x402 v2 packages does not tell the agent to send v1 h
+         match,
+         null,
+         `docs/prds/${file} specifies x402 v2 packages but instructs the agent to use the v1 header ${header}` +
+-          (match ? ` — found: "${match[0].trim()}"` : "") +
++          (match ? ` (found: "${match[0].trim()}")` : "") +
+           `. v2 sends PAYMENT-SIGNATURE; a v2 server never reads ${header}, and the failure is silent.`,
+       );
+     }
+-- 
+2.54.0
+

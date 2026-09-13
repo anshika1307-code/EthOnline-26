@@ -1,0 +1,113 @@
+From 8f34f0656831fc12598cc240667e26daf8e104cc Mon Sep 17 00:00:00 2001
+From: anshika-1307code <anshika1307goyal@gmail.com>
+Date: Sun, 13 Sep 2026 11:30:49 +0530
+Subject: [PATCH 2/3] test(prd): keep the shipped PRDs consistent about the
+ x402 version they describe
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Guards the docs change in the previous commit so it cannot silently regress.
+
+Two assertions over docs/prds/*.md:
+
+1. A PRD that names x402 v2 packages (@x402/hedera, ExactHederaScheme, ...)
+   must not instruct the agent to send `X-PAYMENT` or read
+   `X-PAYMENT-RESPONSE`. Those are v1 names; a v2 resource server does not
+   read them, so the request is treated as unpaid and nothing errors.
+2. Any PRD that mentions a v1 header at all must also mention
+   `PAYMENT-SIGNATURE`, so a reader can tell which version is meant.
+
+Fenced code blocks are excluded, so a deliberate v1 example stays possible,
+and only phrasing that *instructs* ("retry with X-PAYMENT", "send the
+X-PAYMENT header") trips the check — contrasting the two names is fine and is
+what the docs change does.
+
+Verified both ways: fails on the pre-fix PRD with
+
+  docs/prds/x402-metered-api.md specifies x402 v2 packages but instructs the
+  agent to use the v1 header X-PAYMENT — found: "with the `X-PAYMENT`"
+
+and passes on the corrected one.
+---
+ test/prd-x402-headers.test.mjs | 68 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)
+ create mode 100644 test/prd-x402-headers.test.mjs
+
+diff --git a/test/prd-x402-headers.test.mjs b/test/prd-x402-headers.test.mjs
+new file mode 100644
+index 0000000..1e2c53e
+--- /dev/null
++++ b/test/prd-x402-headers.test.mjs
+@@ -0,0 +1,68 @@
++import assert from "node:assert/strict";
++import { readFile, readdir } from "node:fs/promises";
++import path from "node:path";
++import test from "node:test";
++
++// x402 v1 and v2 are not wire-compatible, and the difference is invisible at
++// runtime: a v2 resource server reads `PAYMENT-SIGNATURE` and simply does not
++// look at `X-PAYMENT`, so a client sending the v1 header gets no error — the
++// request is just treated as unpaid. A PRD that names the v1 header while
++// specifying v2 packages sends the agent down that path deliberately.
++//
++// These tests keep the shipped PRDs internally consistent about which version
++// they are describing.
++
++const PRD_DIR = path.resolve("docs/prds");
++
++/** v2 wire names, and the v1 names that silently do nothing against a v2 server. */
++const V1_ONLY_HEADERS = ["X-PAYMENT", "X-PAYMENT-RESPONSE"];
++const V2_PACKAGE_MARKERS = ["@x402/hedera", "@x402/core", "@x402/express", "ExactHederaScheme"];
++
++async function prdFiles() {
++  const entries = await readdir(PRD_DIR);
++  return entries.filter((f) => f.endsWith(".md") && f !== "README.md");
++}
++
++/** Strip fenced code blocks, so an intentional v1 example is not a false positive. */
++function withoutCodeFences(text) {
++  return text.replace(/```[\s\S]*?```/g, "");
++}
++
++test("a PRD that specifies x402 v2 packages does not tell the agent to send v1 headers", async () => {
++  for (const file of await prdFiles()) {
++    const raw = await readFile(path.join(PRD_DIR, file), "utf8");
++    const specifiesV2 = V2_PACKAGE_MARKERS.some((m) => raw.includes(m));
++    if (!specifiesV2) continue;
++
++    const prose = withoutCodeFences(raw);
++    for (const header of V1_ONLY_HEADERS) {
++      // Mentioning the v1 name to contrast it with v2 is fine and useful;
++      // instructing the agent to *send* it is not.
++      const instructing = new RegExp(
++        String.raw`(?:with|send|sends|sending|using|set|sets|retry\s+\S+\s+with|header)\s+(?:the\s+)?\x60?${header}\x60?`,
++        "i",
++      );
++      const match = prose.match(instructing);
++      assert.equal(
++        match,
++        null,
++        `docs/prds/${file} specifies x402 v2 packages but instructs the agent to use the v1 header ${header}` +
++          (match ? ` — found: "${match[0].trim()}"` : "") +
++          `. v2 sends PAYMENT-SIGNATURE; a v2 server never reads ${header}, and the failure is silent.`,
++      );
++    }
++  }
++});
++
++test("a PRD naming the v1 header at all also explains that v2 differs", async () => {
++  for (const file of await prdFiles()) {
++    const raw = await readFile(path.join(PRD_DIR, file), "utf8");
++    if (!V1_ONLY_HEADERS.some((h) => raw.includes(h))) continue;
++
++    assert.ok(
++      raw.includes("PAYMENT-SIGNATURE"),
++      `docs/prds/${file} mentions a v1 payment header without mentioning the v2 name ` +
++        `PAYMENT-SIGNATURE. Readers cannot tell which protocol version is meant.`,
++    );
++  }
++});
+-- 
+2.54.0
+
