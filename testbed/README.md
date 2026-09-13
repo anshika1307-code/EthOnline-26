@@ -12,11 +12,11 @@ camera.
 
 **These are the only hosts our aggressive checks are allowed to run
 against.** If you deploy this yourself, register the hostname in
-`OWN_TESTBED_HOSTS` (`packages/checks/src/guard.ts`) — see
+`OWN_TESTBED_HOSTS` (`packages/checks/src/guard.ts`), see
 [`../ETHICS.md`](../ETHICS.md).
 
 This is one Express app with three routes rather than three separate
-services — functionally identical for the demo (each behavior still has its
+services, functionally identical for the demo (each behavior still has its
 own URL), but one deploy instead of three.
 
 ## Setup
@@ -33,7 +33,7 @@ receiver), with **ECDSA** keys, `0x`-prefixed.
 
 ## One import gotcha worth knowing
 
-Don't import `@hiero-ledger/sdk` directly — `@x402/hedera` already re-exports
+Don't import `@hiero-ledger/sdk` directly, `@x402/hedera` already re-exports
 everything you need from it (`AccountId`, `Client`, `PrivateKey`, etc.).
 Importing both causes a duplicate install that breaks at runtime with a
 confusing `t.startsWith is not a function` error. Documented in the
@@ -46,7 +46,7 @@ HBAR is `asset: "0.0.0"`, and amounts are in **tinybars**: 1 HBAR =
 
 ## One URL to get right
 
-Blocky402's prize-page link points at `https://blocky402.com/` — that's
+Blocky402's prize-page link points at `https://blocky402.com/`, that's
 just the marketing site, not the API, and pointing `FACILITATOR_URL` at it
 causes every gated route to fail. The real API bases are:
 

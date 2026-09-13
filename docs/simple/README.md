@@ -2,14 +2,14 @@
 
 ## The story in one paragraph
 
-Soon, AI agents will pay other AI agents for small jobs — a few cents for one
+Soon, AI agents will pay other AI agents for small jobs, a few cents for one
 API call, no human, no signup, no credit card. This is already happening,
 it's called **x402**. But here's the catch: if a robot is about to hand over
 money to a stranger's API, it has no way to check first whether that API is
 even alive, whether it will actually deliver what it promised, or whether it
 will just take the money and vanish. There's no "read the reviews" button.
 **Preflight is that check.** Point it at an endpoint before you pay it, and it
-tells you — in plain language, backed by evidence — whether it looks **SAFE**,
+tells you(in plain language, backed by evidence) whether it looks **SAFE**,
 whether you should be **CAUTIOUS**, whether it's flat-out **UNSAFE**, or
 whether it's just **DEAD**.
 
@@ -30,12 +30,12 @@ cd packages/checks && npx tsx src/bin/buyer-agent.ts https://testbed-1l2m.onrend
 
 That one command is the whole loop: an agent looks itself up on-chain, finds
 a service, pays for a Preflight check, reads the verdict, and decides whether
-to pay the target — with a receipt of the whole thing written to a public,
+to pay the target, with a receipt of the whole thing written to a public,
 tamper-proof log. Nothing in that sentence is hard-coded or faked.
 
 ## What we actually found when we checked
 
-We didn't just build the checker — we ran it against every single agent
+We didn't just build the checker, we ran it against every single agent
 registered on-chain (via the ERC-8004 standard), all 10,249 of them, and
 looked at what's really out there:
 
@@ -45,12 +45,12 @@ looked at what's really out there:
 
 So out of ten thousand registered "agents," five are currently ready to be
 paid for something. And even those five don't all speak the same version of
-the payment protocol — an agent built for the newer version literally cannot
+the payment protocol, an agent built for the newer version literally cannot
 pay four of those five, and gets no useful error telling it why.
 
 We also found that a **single wallet owns 58%** of every agent ever
-registered, and that public IPFS file-hosting — where a lot of agents store
-their info — silently refuses a huge share of automated requests, which is
+registered, and that public IPFS file-hosting, where a lot of agents store
+their info, silently refuses a huge share of automated requests, which is
 its own kind of unreliability nobody talks about.
 
 None of this is guesswork. Every number here can be regenerated from raw
@@ -64,13 +64,13 @@ It runs a short list of checks, roughly in the order a cautious human would:
    the same as "actually dead")
 2. **Does it ask for a sane, well-formed price?**
 3. **Does the price it quotes match what it claims to charge?**
-4. **If you actually pay it — do you get anything back?** (this is the one
+4. **If you actually pay it, do you get anything back?** (this is the one
    that matters most: paying and getting nothing is the whole reason this
    project exists)
 5. **Is the whole ecosystem quietly dependent on one dominant provider?**
 
-There's a second, more aggressive set of checks — trying to replay a payment
-twice to see if it lets you steal a free copy of the service — but **we only
+There's a second, more aggressive set of checks, trying to replay a payment
+twice to see if it lets you steal a free copy of the service, but **we only
 ever run those against services we built and own ourselves.** We never
 attack a stranger's live service to test it. That's a hard rule, and it's
 enforced in the code itself, not just something we promise in a doc. See
@@ -79,10 +79,10 @@ every check and every limitation.
 
 ## The two sponsors this is built on
 
-- **[Hedera →](./hedera.md)** — the actual payment rail. Every check we sell
+- **[Hedera →](./hedera.md)**, the actual payment rail. Every check we sell
   is paid for in real HBAR on Hedera testnet, and every completed check
   writes a receipt to a public, forgery-proof log on Hedera.
-- **[Bazantic →](./bazantic.md)** — turns Preflight into a reusable tool any
+- **[Bazantic →](./bazantic.md)**, turns Preflight into a reusable tool any
   agent can call, and combines it with Hedera's own account-lookup service to
   catch a scam a payment-quote check alone would miss.
 
