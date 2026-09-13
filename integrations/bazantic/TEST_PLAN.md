@@ -16,6 +16,14 @@ PREFLIGHT_GW_URL=https://ethonline-26.onrender.com BAZANTIC_UPSTREAM_KEY=... \
   https://testbed-1l2m.onrender.com/does-not-exist
 ```
 
+## First: prove the testnet gateway reads testnet
+
+Account ids collide across networks, so check this before trusting any run.
+In the case 1 draft run, the testnet `getAccount 0.0.10475917` result must show
+`evm_address` `0x975e40d10e4d58dada7c2ba90c03c1b5c125a6b0` and
+`created_timestamp` `1789131390.679512817`. If it shows `0x695f6c21…` /
+`1778617190…`, the gateway is reading mainnet — stop and fix its base URL.
+
 ## What must match
 
 A recipe run passes when all of these agree with the oracle:
@@ -77,11 +85,12 @@ two gateway operations and never the Hedera x402 route.
 
 ## Observed results
 
-Fill in from the Bazantic draft runs before publishing.
+Bazantic draft runs, 13 Sep 2026, `anthropic/claude-sonnet-4.6`.
 
 | # | recipe decision | matches oracle? | notes |
 |---|---|---|---|
-| 1 | | | |
+| 1 | `PAY_WITH_SMALL_CAP` | **yes, every field** | Testnet gateway confirmed reading testnet: `getAccount` returned `evm_address` `0x975e40d1…c125a6b0`, `created_timestamp` `1789131390.679512817`. ageDays 2.0 from `checkedAtUnix` 1789307494, inboundPayments 25, historyTruncated true, maxPayment 1000000 / 0.0.0 / hedera:testnet. Tool calls in order: preflight → testnet getAccount → testnet getTransactions; no mainnet call. 50.5 s, 16,575 tokens |
+| 2 (cold) | `DO_NOT_PAY` | decision yes, **path no** | The Render testbed was asleep: Preflight P1 timed out 3/3 (41 s) → `DEAD` → recipe correctly stopped with no mirror calls. Right behaviour for that input, but not the case under test. Rerun warm |
 | 2 | | | |
 | 3 | | | |
 | 4 | | | |

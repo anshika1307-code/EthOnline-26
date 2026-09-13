@@ -51,15 +51,15 @@
       "tool_name": "preflightCheckEndpoint"
     },
     {
-      "gateway_slug": "${TESTNET_MIRROR_SLUG}",
+      "gateway_slug": "z3xelbmspbemzdfw3ufuo3pteq",
       "tool_name": "getAccount"
     },
     {
-      "gateway_slug": "${TESTNET_MIRROR_SLUG}",
+      "gateway_slug": "z3xelbmspbemzdfw3ufuo3pteq",
       "tool_name": "getTransactions"
     },
     {
-      "gateway_slug": "${TESTNET_MIRROR_SLUG}",
+      "gateway_slug": "z3xelbmspbemzdfw3ufuo3pteq",
       "tool_name": "getTokensByAccountId"
     },
     {

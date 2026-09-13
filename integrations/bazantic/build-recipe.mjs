@@ -4,7 +4,7 @@
  * against the rules `baz recipe --help` prints (CLI 0.10.1), so a bad file
  * fails here with a clear message rather than at `baz recipe create`.
  *
- *   PREFLIGHT_SLUG=... TESTNET_MIRROR_SLUG=... node integrations/bazantic/build-recipe.mjs
+ *   TESTNET_MIRROR_SLUG=... node integrations/bazantic/build-recipe.mjs
  *   baz recipe create integrations/bazantic/recipe.json --json
  *
  * Get the slugs from `baz gateway list --json`.

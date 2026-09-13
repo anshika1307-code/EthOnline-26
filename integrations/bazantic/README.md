@@ -56,11 +56,26 @@ mainnet, find a four-month-old funded account, and call the seller verified.
 The recipe routes by `hederaPayTo.network` and refuses to cross-check. That is
 why we added a testnet mirror gateway instead of reusing the mainnet one.
 
+## Live gateways
+
+| gateway | slug | URL |
+|---|---|---|
+| Preflight (ours) | `yxyem37kg5ffdbiksreq54z2mq` | https://yxyem37kg5ffdbiksreq54z2mq.bazgateway.com — `POST /gw/check` $0.002, `POST /gw/liveness` $0.0008, USDC on Base; MCP at `/mcp` |
+| Hedera Testnet Mirror Node (ours) | `z3xelbmspbemzdfw3ufuo3pteq` | https://z3xelbmspbemzdfw3ufuo3pteq.bazgateway.com — accounts, transactions, account tokens at $0.0005, USDC on Base |
+| Hedera Mirror Node, mainnet (Bazantic's) | `xmtqdss7cbddlchc7s3sfdb4b4` | https://xmtqdss7cbddlchc7s3sfdb4b4.bazgateway.com |
+
+Checked 13 Sep 2026: the Preflight gateway's `tools/list` returns
+`preflightCheckEndpoint` and `preflightLivenessCheck`, each taking the JSON body
+as a `requestBody` argument, and an unpaid `POST /gw/check` returns 402 quoting
+2000 USDC base units on `eip155:8453`. The testnet mirror gateway lists
+`getAccount`, `getTransactions` and `getTokensByAccountId`; those three routes
+quote 500 base units ($0.0005).
+
 ## What's in this folder
 
 | file | what |
 |---|---|
-| `recipe.template.json` | the recipe, with `${PREFLIGHT_SLUG}` / `${TESTNET_MIRROR_SLUG}` placeholders |
+| `recipe.template.json` | the recipe, with a `${TESTNET_MIRROR_SLUG}` placeholder until that gateway exists |
 | `build-recipe.mjs` | fills the slugs and checks the file against `baz recipe --help` rules (8 keys, model list, 24 KiB, slug format) |
 | `reference-run.ts` | the same flow in code, against the real services — the oracle the recipe is tested against |
 | `TEST_PLAN.md` | cases, expected results (from the oracle), and how to compare |
@@ -137,7 +152,7 @@ them, fix `tool_name` in `recipe.template.json` before building.
 **7. Build and create the recipe**
 
 ```bash
-PREFLIGHT_SLUG=<26 chars> TESTNET_MIRROR_SLUG=<26 chars> node integrations/bazantic/build-recipe.mjs
+TESTNET_MIRROR_SLUG=<26 chars> node integrations/bazantic/build-recipe.mjs
 baz login
 baz recipe create integrations/bazantic/recipe.json --json
 ```
@@ -175,6 +190,11 @@ because it didn't answer in time.
    networks, that ambiguity silently produces wrong answers rather than errors.
 4. **Recipe `model` values** aren't on `/docs/recipes`; they're only in
    `baz recipe --help`.
+5. **The dashboard showed the MCP server as "UNAVAILABLE — Gateway unreachable"**
+   right after activation, while `POST <gateway>/mcp` `tools/list` already
+   answered 200 with both tools.
+6. **Generated tools wrap a JSON body as `requestBody`.** Reasonable, but not in
+   the recipe docs, and a prompt that says "call with `{endpoint}`" gets it wrong.
 
 ## Submission notes
 
