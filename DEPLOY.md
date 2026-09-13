@@ -73,8 +73,20 @@ docker run -p 8403:8403 \
   preflight-api
 ```
 
-**No private key is needed by the API.** It only *receives*. Only the buyer
-side (P4/A1 in `packages/checks`) holds a key.
+**Payments need no private key** — the API only *receives*.
+
+**The HCS audit trail does.** Writing a receipt means signing a topic message,
+so if you enable it the API holds an operator key. It is optional: leave these
+unset and checks and payments work exactly as before, just without receipts.
+
+| Key | Value |
+|---|---|
+| `HCS_TOPIC_ID` | `0.0.10519901` (Preflight's receipt topic) |
+| `HCS_OPERATOR_ID` | the account that signs receipts |
+| `HCS_OPERATOR_KEY` | its ECDSA key, `0x`-prefixed — **a secret; set it in the host's env UI, never commit it** |
+
+The topic has a submit key, so only this operator can write to it and a
+receipt cannot be forged. Create a new topic with `npx tsx src/create-topic.ts --send`.
 
 ---
 
@@ -151,6 +163,7 @@ curl -s "https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.
 - [ ] `/api/scan` returns a report for a real URL, and **refuses** `http://localhost/`
 - [ ] API `/health` and `/pricing` are public
 - [ ] Unpaid `POST /check` returns **402** with a `PAYMENT-REQUIRED` header
+- [ ] A paid check adds a message to the HCS topic (`GET /receipts` for the link)
 - [ ] One real payment settles, visible on HashScan
 - [ ] `OWN_TESTBED_HOSTS` set if the testbed is deployed
 - [ ] Agent #119 updated to the live API via `scripts/register-agent.ts --update`

@@ -11,7 +11,7 @@
     "build:data": "node scripts/build-dashboard-data.mjs",
     "prebuild": "node scripts/build-dashboard-data.mjs",
     "verify": "node scripts/verify-claims.mjs",
-    "test": "tsx --test packages/registry/src/*.test.ts packages/checks/src/*.test.ts packages/checks/src/checks/*.test.ts"
+    "test": "tsx --test packages/registry/src/*.test.ts packages/checks/src/*.test.ts packages/checks/src/checks/*.test.ts packages/checks/src/bin/*.test.ts"
   },
   "dependencies": {
     "next": "16.3.4",

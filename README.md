@@ -246,6 +246,27 @@ npm run a1 -- http://localhost:8402/good http://localhost:8402/bad-replay
 ## Sponsor technology
 
 **Hedera** — the whole payment layer.
+
+*The loop the track asks for — an agent discovering a service and paying for it
+with no API key, account, or subscription — runs end to end:*
+
+```
+1. DISCOVER  buyer agent reads Preflight's ERC-8004 entry (#119) off the Hedera registry
+2. PAY       buys a safety check over x402, settled through Blocky402
+3. DECIDE    uses the verdict to decide whether to pay the target at all
+4. AUDIT     the check it paid for is recorded as a receipt on HCS
+```
+
+`packages/checks/src/bin/buyer-agent.ts` · the decision rule is tested so it
+never claims something the checks did not observe.
+
+- **Verifiable payment audit trail on HCS** — every settled check writes one
+  receipt to topic [`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901)
+  linking what was checked and the verdict to the settlement transaction that
+  paid for it. Written only *after* settlement, so a receipt always corresponds
+  to money that moved. The topic has a submit key, so receipts cannot be
+  forged; anyone can read them from the mirror node without an account.
+  [`apps/api/src/hcs.ts`](./apps/api/src/hcs.ts)
 - x402-gated service on Hedera testnet settled through Blocky402:
   [`apps/api/src/server.ts`](./apps/api/src/server.ts)
 - Real paid requests end-to-end, buyer side:
