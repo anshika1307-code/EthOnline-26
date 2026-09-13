@@ -1,4 +1,5 @@
 import { loadScan, loadLiveness, loadReports, funnel } from '@/lib/data';
+import { ScanForm } from './ScanForm';
 
 const VERDICT_STYLE: Record<string, string> = {
   SAFE: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30',
@@ -66,6 +67,8 @@ export default function Home() {
                 record (arXiv:2606.12128). The two columns to its right are behaviour, measured live.
               </p>
             </section>
+
+            <ScanForm />
 
             {/* Registry composition — where the sampled agents actually land. */}
             <section className="mb-10">

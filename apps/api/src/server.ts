@@ -29,10 +29,10 @@ import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { HTTPFacilitatorClient } from '@x402/core/server';
 import { ExactHederaScheme } from '@x402/hedera/exact/server';
 
-import { checkLiveness } from '../../../packages/checks/src/checks/p1-liveness.js';
-import { checkQuote, checkPriceConsistency } from '../../../packages/checks/src/checks/p2-quote.js';
-import { buildReport, renderReport } from '../../../packages/checks/src/report.js';
-import type { CheckResult } from '../../../packages/checks/src/types.js';
+import { checkLiveness } from '../../../packages/checks/src/checks/p1-liveness';
+import { checkQuote, checkPriceConsistency } from '../../../packages/checks/src/checks/p2-quote';
+import { buildReport, renderReport } from '../../../packages/checks/src/report';
+import type { CheckResult } from '../../../packages/checks/src/types';
 
 const {
   HEDERA_RECEIVER_ACCOUNT_ID,
