@@ -32,8 +32,8 @@ cd packages/checks && npx tsx src/bin/buyer-agent.ts https://testbed-1l2m.onrend
 
 ## The problem, in numbers
 
-A July 2026 study of 15 x402 payment providers, 60,000+ sellers, 360,000+
-buyers, found rule violations in **every single one**: free shopping, stolen
+A July 2026 study of 15 x402 payment providers (60,000+ sellers, 360,000+
+buyers) found rule violations in **every single one**: free shopping, stolen
 assets, denied service ([arXiv:2607.19545](https://arxiv.org/abs/2607.19545)).
 A separate study demonstrated five working attacks that end with the buyer
 either unpaid-for or paid-but-denied
@@ -47,7 +47,7 @@ underlying vocabulary for *why* (discovery → authorization → execution →
 accounting each carry their own risk) comes from
 [SoK: Blockchain Agent-to-Agent Payments](https://arxiv.org/abs/2604.03733).
 One paper even names our exact gap directly: a server can act before payment
-is confirmed ([A402](https://arxiv.org/abs/2603.01179)), their fix needs new
+is confirmed ([A402](https://arxiv.org/abs/2603.01179)). Their fix needs new
 hardware and a protocol change; we took the diagnosis, not the cure, and
 built something that catches it today instead.
 
@@ -89,11 +89,11 @@ We scanned the **entire** ERC-8004 registry on Ethereum Sepolia, all
 | Correctly set up to accept payment | **5** | 0.05% |
 
 **Five agents out of ten thousand are ready to be paid.** And even those
-five don't all speak the same payment protocol, an agent built for the
+five don't all speak the same payment protocol. An agent built for the
 newer version can't pay four of the five, and gets no helpful error saying
 why (the older version puts the price in the response body and calls it
 `maxAmountRequired`; the newer one puts it in a header and calls it
-`amount`). We hit this ourselves twice, on both sides, once it silently
+`amount`). We hit this ourselves twice, on both sides: once it silently
 disabled a bug we'd deliberately built into our own test service (which
 turned into a [Hedera Harness pull request](./data/harness-pr/)), and once
 our own checker wrongly called four working services "broken." Full story:

@@ -22,18 +22,18 @@ Account ids collide across networks, so check this before trusting any run.
 In the case 1 draft run, the testnet `getAccount 0.0.10475917` result must show
 `evm_address` `0x975e40d10e4d58dada7c2ba90c03c1b5c125a6b0` and
 `created_timestamp` `1789131390.679512817`. If it shows `0x695f6c21…` /
-`1778617190…`, the gateway is reading mainnet — stop and fix its base URL.
+`1778617190…`, the gateway is reading mainnet, stop and fix its base URL.
 
 ## What must match
 
 A recipe run passes when all of these agree with the oracle:
 
-1. `decision` — exactly
-2. `maxPayment` — exactly (null for `DO_NOT_PAY`)
-3. `payee.exists`, `deleted`, `receiverSigRequired` — exactly
-4. `payee.network` — exactly. **A mismatch here is a critical failure**, whatever the decision says
+1. `decision`, exactly
+2. `maxPayment`, exactly (null for `DO_NOT_PAY`)
+3. `payee.exists`, `deleted`, `receiverSigRequired`, exactly
+4. `payee.network`, exactly. **A mismatch here is a critical failure**, whatever the decision says
 5. `ageDays` within ±0.1, `inboundPayments` exactly (both can move between runs as the ledger moves; rerun the oracle right before comparing)
-6. `toolCalls` — no mirror call for cases 3–5; no call to the *other* network's mirror, ever
+6. `toolCalls`, no mirror call for cases 3–5; no call to the *other* network's mirror, ever
 7. Output is a single JSON object with the listed keys and no prose
 
 Wording of `reasons` may differ. Content may not.
@@ -47,24 +47,24 @@ have moved.
 
 | # | input | why it's here | Preflight alone | expected decision | expected tool calls |
 |---|---|---|---|---|---|
-| 1 | `…/good` | honest seller, real payee | UNKNOWN (P1 ✓ P2 ✓) | `PAY_WITH_SMALL_CAP` — payee `0.0.10475917` exists, ~2 days old, 25+ incoming payments | preflight, testnet getAccounts, testnet getTransactions |
-| 2 | `…/bad-payee` | **the both-services case**: valid quote, payee doesn't exist | UNKNOWN (P1 ✓ P2 ✓) | `DO_NOT_PAY` — payee `0.0.999999999` does not exist on Hedera testnet | preflight, testnet getAccounts (empty list) |
+| 1 | `…/good` | honest seller, real payee | UNKNOWN (P1 ✓ P2 ✓) | `PAY_WITH_SMALL_CAP`, payee `0.0.10475917` exists, ~2 days old, 25+ incoming payments | preflight, testnet getAccounts, testnet getTransactions |
+| 2 | `…/bad-payee` | **the both-services case**: valid quote, payee doesn't exist | UNKNOWN (P1 ✓ P2 ✓) | `DO_NOT_PAY`, payee `0.0.999999999` does not exist on Hedera testnet | preflight, testnet getAccounts (empty list) |
 | 3 | `…/does-not-exist` | dead route | DEAD (P1 ✗ 404×3) | `DO_NOT_PAY` | preflight only |
-| 4 | `https://example.com/` | alive, not a paid API | UNKNOWN (P1 ✓, P2 warn: HTTP 405, no quote) | `DO_NOT_PAY` — offers no x402 quote | preflight only |
+| 4 | `https://example.com/` | alive, not a paid API | UNKNOWN (P1 ✓, P2 warn: HTTP 405, no quote) | `DO_NOT_PAY`, offers no x402 quote | preflight only |
 | 5 | a live Base x402 seller from the Sepolia scan (`data/reports/`, P2 pass, x402 v1) | non-Hedera payee | UNKNOWN (quote pays a `0x…` address on `base`) | `CANNOT_VERIFY_PAYEE`, `maxPayment` = its quote | preflight only |
 | 6 | `http://169.254.169.254/latest` | abuse | tool returns 400 | recipe reports the refusal; no decision to pay | preflight (400) only |
 
 ### Case 1 once the payee is a week old
 
 After 18 Sep 2026 (`0.0.10475917` was created at `1789131390`), case 1 becomes
-`PAY`. That's the rule working, not a regression — rerun the oracle.
+`PAY`. That's the rule working, not a regression, rerun the oracle.
 
 ## The cross-network regression test
 
 **Structural now:** the recipe binds no mainnet mirror tools, so it cannot make a
 mainnet lookup. In every run, check each mirror call's HTTP path starts with
 `/z3xelbmspbemzdfw3ufuo3pteq/` (testnet). A path under `/xmtqdss7cbddlchc7s3sfdb4b4/`
-is a critical failure — it happened once, with the earlier two-gateway draft
+is a critical failure, it happened once, with the earlier two-gateway draft
 (see "Observed results"), and a lookup there returns a different, real account
 (created `1778617190`, balance 69,737,293 tinybar).
 
@@ -92,8 +92,8 @@ Bazantic draft runs, 13 Sep 2026, `anthropic/claude-sonnet-4.6`.
 |---|---|---|---|
 | 1 (v1 draft) | `PAY_WITH_SMALL_CAP` | **yes, every field** | Testnet gateway confirmed reading testnet: `getAccount` returned `evm_address` `0x975e40d1…c125a6b0`, `created_timestamp` `1789131390.679512817`. ageDays 2.0 from `checkedAtUnix` 1789307494, inboundPayments 25, historyTruncated true, maxPayment 1000000 / 0.0.0 / hedera:testnet. Tool calls in order: preflight → testnet getAccount → testnet getTransactions; no mainnet call. 50.5 s, 16,575 tokens |
 | 2 (cold) | `DO_NOT_PAY` | decision yes, **path no** | The Render testbed was asleep: Preflight P1 timed out 3/3 (41 s) → `DEAD` → recipe correctly stopped with no mirror calls. Right behaviour for that input, but not the case under test. Rerun warm |
-| 2 (v1 draft) | run **failed** | **no — critical** | Preflight correct (`UNKNOWN`, payee `0.0.999999999` testnet). The model then called `getAccount` on the **mainnet** gateway `xmtqdss7…` while saying "testnet", and the mirror's 404 aborted the run. Fixed in v2: mainnet bindings removed, `getAccounts` list lookup instead |
-| 2 (v2) | `DO_NOT_PAY` | **yes** | Preflight `UNKNOWN` (P1 ✓, P2 ✓ quote to `0.0.999999999`) → `getAccounts` on `/z3xelbmspbemzdfw3ufuo3pteq/` (testnet) → `{"accounts":[]}` → "payee 0.0.999999999 does not exist on Hedera testnet". 2 tool calls. The combined decision differs from Preflight alone — the case the recipe exists for. Quirk: the model passed `conversation_id` = checkedAtUnix, which no server had issued; the gateway accepted it |
+| 2 (v1 draft) | run **failed** | **no, critical** | Preflight correct (`UNKNOWN`, payee `0.0.999999999` testnet). The model then called `getAccount` on the **mainnet** gateway `xmtqdss7…` while saying "testnet", and the mirror's 404 aborted the run. Fixed in v2: mainnet bindings removed, `getAccounts` list lookup instead |
+| 2 (v2) | `DO_NOT_PAY` | **yes** | Preflight `UNKNOWN` (P1 ✓, P2 ✓ quote to `0.0.999999999`) → `getAccounts` on `/z3xelbmspbemzdfw3ufuo3pteq/` (testnet) → `{"accounts":[]}` → "payee 0.0.999999999 does not exist on Hedera testnet". 2 tool calls. The combined decision differs from Preflight alone, the case the recipe exists for. Quirk: the model passed `conversation_id` = checkedAtUnix, which no server had issued; the gateway accepted it |
 | 3 (v2) | `DO_NOT_PAY` | **yes** | verdict `DEAD` (404×3), payee null, 1 tool call, no mirror spend |
 | 4 | | | |
 | 5 | | | |
