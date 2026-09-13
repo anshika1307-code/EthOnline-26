@@ -1,4 +1,4 @@
-import { loadScan, loadLiveness, loadReports, funnel } from '@/lib/data';
+import { loadDashboard } from '@/lib/data';
 import { ScanForm } from './ScanForm';
 
 const VERDICT_STYLE: Record<string, string> = {
@@ -28,10 +28,8 @@ function Stat({ n, label, sub }: { n: string | number; label: string; sub?: stri
 }
 
 export default function Home() {
-  const scan = loadScan();
-  const live = loadLiveness();
-  const reports = loadReports();
-  const f = funnel(scan, live, reports);
+  const d = loadDashboard();
+  const f = d.funnel;
 
   const pct = (n: number, d: number) => (d === 0 ? '—' : `${((n / d) * 100).toFixed(2)}%`);
 
@@ -46,7 +44,7 @@ export default function Home() {
           </p>
         </header>
 
-        {!scan ? (
+        {!d ? (
           <p className="rounded-lg border border-amber-800 bg-amber-950/40 p-4 text-amber-200">
             No scan data found in <code>data/scan-runs/</code>. Run <code>npm run fetch-agents</code>.
           </p>
@@ -60,7 +58,7 @@ export default function Home() {
               <div className="flex flex-wrap gap-3">
                 <Stat n={f.declared} label="declare an endpoint" sub={pct(f.declared, f.sampled)} />
                 <Stat n={f.answering} label="answer when contacted" sub={pct(f.answering, f.sampled)} />
-                <Stat n={f.paywalled} label="accept payment (valid x402 quote)" sub={pct(f.paywalled, f.sampled)} />
+                <Stat n={f.payable} label="accept payment (valid x402 quote)" sub={pct(f.payable, f.sampled)} />
               </div>
               <p className="mt-3 text-sm text-zinc-500">
                 Prior work measured <em>declaration</em>: 67 of the first 10,000 agents expose a service
@@ -78,7 +76,7 @@ export default function Home() {
               <div className="overflow-x-auto rounded-lg border border-zinc-800">
                 <table className="w-full text-sm">
                   <tbody>
-                    {Object.entries(scan.categoryCounts).map(([k, v]) => (
+                    {Object.entries(d.categoryCounts).map(([k, v]) => (
                       <tr key={k} className="border-b border-zinc-800/70 last:border-0">
                         <td className="px-4 py-2 font-mono text-zinc-400">{k}</td>
                         <td className="px-4 py-2 text-right font-mono tabular-nums text-zinc-200">{v}</td>
@@ -86,7 +84,7 @@ export default function Home() {
                           <div className="h-1.5 rounded bg-zinc-800">
                             <div
                               className="h-1.5 rounded bg-zinc-500"
-                              style={{ width: `${(v / Math.max(scan.agentsSampled, 1)) * 100}%` }}
+                              style={{ width: `${(v / Math.max(f.sampled, 1)) * 100}%` }}
                             />
                           </div>
                         </td>
@@ -98,18 +96,18 @@ export default function Home() {
             </section>
 
             {/* Per-endpoint reports. */}
-            {reports ? (
+            {d.reports.length ? (
               <section className="mb-10">
                 <h2 className="mb-1 text-sm font-medium uppercase tracking-wide text-zinc-500">
                   Preflight reports
                 </h2>
                 <p className="mb-3 text-xs text-zinc-500">
-                  {reports.anonymised
+                  {d.anonymised
                     ? 'Third-party hosts are anonymised — the finding is the behaviour, not who did it.'
                     : 'Hosts shown (local mode).'}
                 </p>
                 <div className="space-y-3">
-                  {reports.reports.map((r, i) => (
+                  {d.reports.map((r, i) => (
                     <details
                       key={i}
                       className="group rounded-lg border border-zinc-800 bg-zinc-900/40 open:bg-zinc-900/70"
@@ -123,11 +121,11 @@ export default function Home() {
                           {r.verdict}
                         </span>
                         <span className="font-mono text-xs text-zinc-500">
-                          agent {r.target.agentId}
+                          agent {r.agentId}
                         </span>
                         <span className="truncate font-mono text-xs text-zinc-400">
-                          {/* display is anonymised at generation time; never render target.endpoint */}
-                          {r.display ?? r.target.endpoint}
+                          {/* anonymised at generation time — safe to render */}
+                          {r.display}
                         </span>
                       </summary>
                       <div className="border-t border-zinc-800 px-4 py-3">
@@ -181,11 +179,11 @@ export default function Home() {
 
             <footer className="border-t border-zinc-800 pt-4 text-xs text-zinc-600">
               <div className="font-mono">
-                {scan.chain} · registry {scan.identityRegistry}
+                {d.chain} · registry {d.identityRegistry}
               </div>
               <div className="mt-1">
-                scan {new Date(scan.scannedAt).toISOString()}
-                {live ? ` · liveness ${new Date(live.ranAt).toISOString()}` : ''}
+                scan {new Date(d.scannedAt).toISOString()} · liveness{' '}
+                {new Date(d.livenessRanAt).toISOString()}
               </div>
             </footer>
           </>
