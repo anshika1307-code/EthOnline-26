@@ -6,7 +6,7 @@ import {
   registrableDomain,
   anonymiseDomains,
   CONCENTRATION_WARN_THRESHOLD,
-} from './p5-concentration.js';
+} from './p5-concentration';
 
 const ep = (agentId: string, url: string, owner?: string) => ({ agentId, url, owner });
 

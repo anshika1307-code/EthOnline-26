@@ -9,7 +9,7 @@
  * sketches — one fewer package to install on a 2-day clock. The rendering is
  * pure and has no dependencies, so splitting it out later is a file move.
  */
-import { deriveVerdict, type CheckResult, type PreflightReport, type Verdict } from './types.js';
+import { deriveVerdict, type CheckResult, type PreflightReport, type Verdict } from './types';
 
 const MARK: Record<CheckResult['outcome'], string> = {
   pass: '✓',

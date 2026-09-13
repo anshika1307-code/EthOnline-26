@@ -13,7 +13,7 @@
  * Both are PASSIVE: one unauthenticated request, no payment, nothing
  * adversarial. Safe against third parties (ETHICS.md §1 rule 1).
  */
-import type { CheckResult } from '../types.js';
+import type { CheckResult } from '../types';
 
 const USER_AGENT = 'Preflight/0.1 (+https://github.com/anshika1307-code/EthOnline-26) ERC-8004 endpoint checker';
 
@@ -21,6 +21,8 @@ const USER_AGENT = 'Preflight/0.1 (+https://github.com/anshika1307-code/EthOnlin
 const PAYMENT_REQUIRED_HEADER = 'PAYMENT-REQUIRED';
 
 export type Quote = {
+  /** 1 or 2 — the field names and transport differ between them. */
+  version?: number;
   scheme?: string;
   network?: string;
   amount?: string;
@@ -32,8 +34,23 @@ export type Quote = {
 
 export type QuoteResult = { check: CheckResult; quote: Quote | null };
 
-/** Fields a v2 `accepts` entry must carry for a buyer to act on it. */
-const REQUIRED = ['scheme', 'network', 'amount', 'asset', 'payTo'] as const;
+/**
+ * Required fields differ by protocol version, and getting this wrong produces
+ * false accusations.
+ *
+ * x402 **v2** names the amount `amount` and puts the quote in a
+ * `PAYMENT-REQUIRED` header. x402 **v1** names it `maxAmountRequired` and puts
+ * the quote in the response body. A v2-only validator reports every v1 seller
+ * as "missing amount" — which is the checker being wrong, not the seller.
+ * We hit exactly that: four live agents were wrongly flagged before this.
+ */
+const REQUIRED_V2 = ['scheme', 'network', 'amount', 'asset', 'payTo'] as const;
+const REQUIRED_V1 = ['scheme', 'network', 'maxAmountRequired', 'payTo'] as const;
+
+/** The amount field for a given protocol version. */
+function amountField(version: number): 'amount' | 'maxAmountRequired' {
+  return version === 1 ? 'maxAmountRequired' : 'amount';
+}
 
 function decodeQuoteHeader(raw: string): unknown {
   return JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
@@ -103,7 +120,8 @@ export async function checkQuote(
   }
 
   const obj = (payload ?? {}) as Record<string, unknown>;
-  evidence.x402Version = obj.x402Version;
+  const version = Number(obj.x402Version ?? 2);
+  evidence.x402Version = version;
   const accepts = Array.isArray(obj.accepts) ? (obj.accepts as Record<string, unknown>[]) : [];
   evidence.acceptsCount = accepts.length;
 
@@ -112,22 +130,27 @@ export async function checkQuote(
   }
 
   const first = accepts[0];
-  const missing = REQUIRED.filter((k) => first[k] === undefined || first[k] === '');
+  const required = version === 1 ? REQUIRED_V1 : REQUIRED_V2;
+  const missing = (required as readonly string[]).filter(
+    (k) => first[k] === undefined || first[k] === '',
+  );
   evidence.quote = first;
   evidence.missingFields = missing;
 
   if (missing.length > 0) {
-    return fail(`402 quote is missing required field(s): ${missing.join(', ')}`);
+    return fail(`402 quote (x402 v${version}) is missing required field(s): ${missing.join(', ')}`);
   }
 
-  if (typeof first.amount === 'string' && !/^\d+$/.test(first.amount)) {
-    return fail(`402 quote amount is not an integer in atomic units: "${first.amount}"`);
+  const amt = first[amountField(version)];
+  if (typeof amt === 'string' && !/^\d+$/.test(amt)) {
+    return fail(`402 quote amount is not an integer in atomic units: "${amt}"`);
   }
 
   const quote: Quote = {
+    version,
     scheme: first.scheme as string,
     network: first.network as string,
-    amount: first.amount as string,
+    amount: first[amountField(version)] as string,
     asset: first.asset as string,
     payTo: first.payTo as string,
     maxTimeoutSeconds: first.maxTimeoutSeconds as number | undefined,
@@ -139,7 +162,8 @@ export async function checkQuote(
       id: 'P2',
       outcome: 'pass',
       summary:
-        `quote well-formed — ${quote.amount} of ${quote.asset} on ${quote.network} to ${quote.payTo}` +
+        `quote well-formed (x402 v${version}) — ${quote.amount} of ${quote.asset ?? 'native'} ` +
+        `on ${quote.network} to ${quote.payTo}` +
         (accepts.length > 1 ? ` (${accepts.length} options offered)` : ''),
       evidence,
       observedAt,

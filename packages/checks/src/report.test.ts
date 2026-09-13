@@ -7,8 +7,8 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveVerdict, type CheckResult } from './types.js';
-import { buildReport, renderReport, renderOneLine } from './report.js';
+import { deriveVerdict, type CheckResult } from './types';
+import { buildReport, renderReport, renderOneLine } from './report';
 
 const at = '2026-09-12T00:00:00.000Z';
 const check = (

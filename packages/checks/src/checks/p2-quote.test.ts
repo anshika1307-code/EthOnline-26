@@ -4,7 +4,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractAdvertisedPrice, checkPriceConsistency, type Quote } from './p2-quote.js';
+import { extractAdvertisedPrice, checkPriceConsistency, type Quote } from './p2-quote';
 
 const quote = (amount: string, asset = '0.0.0'): Quote => ({
   scheme: 'exact',
@@ -43,6 +43,19 @@ describe('extractAdvertisedPrice', () => {
 
   test('handles undefined', () => {
     assert.equal(extractAdvertisedPrice(undefined), null);
+  });
+});
+
+describe('x402 version awareness', () => {
+  // Regression: a v2-only validator reported four real, correct v1 sellers as
+  // "missing amount". Publishing that would have been a false accusation.
+  test('v1 uses maxAmountRequired, v2 uses amount', () => {
+    // Documented here as the contract P2 relies on; see p2-quote.ts.
+    const v1 = { x402Version: 1, accepts: [{ scheme: 'exact', network: 'base', maxAmountRequired: '10000', payTo: '0xabc' }] };
+    const v2 = { x402Version: 2, accepts: [{ scheme: 'exact', network: 'hedera:testnet', amount: '100000', asset: '0.0.0', payTo: '0.0.1' }] };
+    assert.ok('maxAmountRequired' in v1.accepts[0]);
+    assert.ok(!('amount' in v1.accepts[0]), 'v1 must not be judged against `amount`');
+    assert.ok('amount' in v2.accepts[0]);
   });
 });
 

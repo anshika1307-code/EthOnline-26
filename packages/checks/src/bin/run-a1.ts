@@ -7,9 +7,9 @@
  *   npm run a1 -- http://localhost:8402/good http://localhost:8402/bad-replay
  */
 import { config } from 'dotenv';
-import { checkReplay } from '../checks/a1-replay.js';
-import { NotOurTestbedError } from '../guard.js';
-import type { P4Config } from '../checks/p4-delivery.js';
+import { checkReplay } from '../checks/a1-replay';
+import { NotOurTestbedError } from '../guard';
+import type { P4Config } from '../checks/p4-delivery';
 
 config({ path: '../../testbed/.env' });
 config({ path: '.env' });

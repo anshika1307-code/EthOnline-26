@@ -9,8 +9,8 @@
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { checkLiveness } from '../checks/p1-liveness.js';
-import type { CheckResult } from '../types.js';
+import { checkLiveness } from '../checks/p1-liveness';
+import type { CheckResult } from '../types';
 
 const REPO = resolve(import.meta.dirname, '../../../..');
 const SCAN_DIR = join(REPO, 'data', 'scan-runs');

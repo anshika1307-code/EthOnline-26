@@ -14,7 +14,7 @@
  * Domains are ANONYMISED in output (ETHICS.md rule 7). Paper 1 anonymised them
  * too: the finding is the concentration, not who is concentrated.
  */
-import type { CheckResult } from '../types.js';
+import type { CheckResult } from '../types';
 
 /**
  * Warn above this share. Chosen so it flags "one provider effectively is the

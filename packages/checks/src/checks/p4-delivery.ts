@@ -13,7 +13,7 @@ import { wrapFetchWithPayment } from '@x402/fetch';
 import { x402Client } from '@x402/core/client';
 import { createClientHederaSigner, PrivateKey } from '@x402/hedera';
 import { ExactHederaScheme } from '@x402/hedera/exact/client';
-import type { CheckResult } from '../types.js';
+import type { CheckResult } from '../types';
 
 const USER_AGENT = 'Preflight/0.1 (+https://github.com/preflight/preflight) ERC-8004 endpoint checker';
 

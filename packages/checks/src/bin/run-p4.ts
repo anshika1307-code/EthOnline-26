@@ -8,8 +8,8 @@
  *   npm run p4 -- http://localhost:8402/good http://localhost:8402/bad-delivery
  */
 import { config } from 'dotenv';
-import { checkDelivery, type P4Config } from '../checks/p4-delivery.js';
-import { isOwnTestbed } from '../guard.js';
+import { checkDelivery, type P4Config } from '../checks/p4-delivery';
+import { isOwnTestbed } from '../guard';
 
 config({ path: '../../testbed/.env' });
 config({ path: '.env' });

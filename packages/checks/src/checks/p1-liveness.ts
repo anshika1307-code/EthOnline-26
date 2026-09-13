@@ -11,7 +11,7 @@
  *   - identifies itself by User-Agent
  *   - backs off and stops on a refusal signal (429 / 403)
  */
-import type { CheckResult } from '../types.js';
+import type { CheckResult } from '../types';
 
 const USER_AGENT = 'Preflight/0.1 (+https://github.com/anshika1307-code/EthOnline-26) ERC-8004 endpoint checker';
 
@@ -25,6 +25,8 @@ export type P1Config = {
 
 export type Probe = {
   attempt: number;
+  /** Which verb answered. Some agent APIs are POST-only and 404/405 a GET. */
+  method?: 'GET' | 'POST';
   ok: boolean;
   status?: number;
   /** True for text/event-stream — the body is never drained, so latency is TTFB. */
@@ -45,6 +47,18 @@ function median(xs: number[]): number {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 }
 
+/**
+ * Is this response evidence the endpoint is alive and working?
+ *
+ * 2xx obviously. **402 also counts**: for an x402-gated resource, "Payment
+ * Required" is the correct, healthy answer to an unpaid request — the endpoint
+ * is up and behaving to spec. Counting it as dead marked every payable agent
+ * in the registry as broken, which is the opposite of the truth.
+ */
+function isAlive(status: number): boolean {
+  return (status >= 200 && status < 300) || status === 402;
+}
+
 /** A signal that the operator does not want our traffic. We stop, we do not retry. */
 function isRefusal(status?: number): boolean {
   return status === 429 || status === 403;
@@ -63,12 +77,35 @@ export async function checkLiveness(endpoint: string, cfg: P1Config = {}): Promi
     if (i > 1) await sleep(spacingMs);
     const startedAt = Date.now();
     try {
-      const res = await fetch(endpoint, {
-        method: 'GET',
-        redirect: 'follow',
-        headers: { 'user-agent': USER_AGENT, accept: '*/*' },
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      const probe = async (method: 'GET' | 'POST') =>
+        fetch(endpoint, {
+          method,
+          redirect: 'follow',
+          headers: {
+            'user-agent': USER_AGENT,
+            accept: '*/*',
+            ...(method === 'POST' ? { 'content-type': 'application/json' } : {}),
+          },
+          ...(method === 'POST' ? { body: '{}' } : {}),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+
+      // Many agent APIs are POST-only and answer a GET with 404/405. Treating
+      // those as dead undercounts liveness — in a full-registry round it hid
+      // every x402-capable endpoint, including the only one offering a valid
+      // quote. So a 404/405 on GET earns one POST retry before we call it dead.
+      let method: 'GET' | 'POST' = 'GET';
+      let res = await probe('GET');
+      if (res.status === 404 || res.status === 405) {
+        await res.body?.cancel().catch(() => undefined);
+        const viaPost = await probe('POST');
+        if (viaPost.status !== 404 && viaPost.status !== 405) {
+          res = viaPost;
+          method = 'POST';
+        } else {
+          await viaPost.body?.cancel().catch(() => undefined);
+        }
+      }
       // Latency is time-to-response-headers, measured BEFORE touching the body.
       // Several real agent endpoints are `text/event-stream` (MCP over SSE) and
       // never close: draining them measures our own timeout, not their speed.
@@ -83,7 +120,8 @@ export async function checkLiveness(endpoint: string, cfg: P1Config = {}): Promi
       }
       probes.push({
         attempt: i,
-        ok: res.ok,
+        method,
+        ok: isAlive(res.status),
         status: res.status,
         stream: isStream,
         latencyMs,
@@ -120,6 +158,7 @@ export async function checkLiveness(endpoint: string, cfg: P1Config = {}): Promi
     redirected: succeeded[0]?.redirected ?? answered[0]?.redirected,
     contentType: succeeded[0]?.contentType,
     isStream: succeeded.some((p) => p.stream) || undefined,
+    answeredVia: succeeded[0]?.method,
     probes,
   };
 
@@ -147,7 +186,7 @@ export async function checkLiveness(endpoint: string, cfg: P1Config = {}): Promi
     return {
       id: 'P1',
       outcome: 'fail',
-      summary: `answered but never successfully: HTTP ${answered.map((p) => p.status).join(', ')} across ${answered.length} attempts`,
+      summary: `answered but never usefully: HTTP ${answered.map((p) => p.status).join(', ')} across ${answered.length} attempts`,
       evidence,
       observedAt,
     };
@@ -164,10 +203,12 @@ export async function checkLiveness(endpoint: string, cfg: P1Config = {}): Promi
   }
 
   const streamNote = succeeded.some((p) => p.stream) ? ' (SSE stream; latency is time-to-headers)' : '';
+  const viaPost = succeeded[0]?.method === 'POST' ? ' via POST' : '';
+  const paywalled = succeeded.every((p) => p.status === 402) ? ' — 402, alive and paywalled' : '';
   return {
     id: 'P1',
     outcome: 'pass',
-    summary: `responded ${succeeded.length}/${probes.length}, median ${median(latencies)}ms${streamNote}`,
+    summary: `responded ${succeeded.length}/${probes.length}${viaPost}, median ${median(latencies)}ms${streamNote}${paywalled}`,
     evidence,
     observedAt,
   };

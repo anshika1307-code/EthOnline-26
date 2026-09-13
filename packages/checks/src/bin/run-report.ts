@@ -10,10 +10,10 @@
  */
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { buildReport, renderReport, renderOneLine } from '../report.js';
-import { checkQuote, checkPriceConsistency, extractAdvertisedPrice } from '../checks/p2-quote.js';
-import { computeConcentration, checkConcentration, anonymiseDomains } from '../checks/p5-concentration.js';
-import type { CheckResult } from '../types.js';
+import { buildReport, renderReport, renderOneLine } from '../report';
+import { checkQuote, checkPriceConsistency, extractAdvertisedPrice } from '../checks/p2-quote';
+import { computeConcentration, checkConcentration, anonymiseDomains } from '../checks/p5-concentration';
+import type { CheckResult } from '../types';
 
 const REPO = resolve(import.meta.dirname, '../../../..');
 const showHosts = process.argv.includes('--show-hosts');
