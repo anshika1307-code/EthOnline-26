@@ -52,8 +52,8 @@ export type PayeeFacts = {
   ageDays: number | null;
   /** Successful transfers that credited this account, within the page read. */
   inboundPayments: number | null;
-  /** True when the page was full, so the real count may be higher. */
-  historyTruncated: boolean;
+  /** True when the page was full, so the real count may be higher. null when not looked up. */
+  historyTruncated: boolean | null;
   /** For an HTS-token quote: can the account receive that token? null for HBAR. */
   canReceiveToken: boolean | null;
 };
@@ -80,7 +80,7 @@ export function payeeFacts(
   if (!account) {
     return {
       ...hedera, exists: false, deleted: null, receiverSigRequired: null, ageDays: null,
-      inboundPayments: null, historyTruncated: false, canReceiveToken: null,
+      inboundPayments: null, historyTruncated: null, canReceiveToken: null,
     };
   }
   const created = account.created_timestamp ? Number(account.created_timestamp.split('.')[0]) * 1000 : null;
@@ -104,7 +104,7 @@ export function payeeFacts(
     receiverSigRequired: account.receiver_sig_required,
     ageDays,
     inboundPayments: inbound,
-    historyTruncated: Boolean(txs?.links?.next),
+    historyTruncated: txs ? Boolean(txs.links?.next) : null,
     canReceiveToken,
   };
 }

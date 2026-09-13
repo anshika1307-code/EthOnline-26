@@ -32,7 +32,7 @@
       "receiverSigRequired": null,
       "ageDays": null,
       "inboundPayments": null,
-      "historyTruncated": false,
+      "historyTruncated": null,
       "canReceiveToken": null
     },
     "reasons": [

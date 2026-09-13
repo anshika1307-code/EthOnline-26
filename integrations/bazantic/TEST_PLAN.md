@@ -93,8 +93,8 @@ Bazantic draft runs, 13 Sep 2026, `anthropic/claude-sonnet-4.6`.
 | 1 (v1 draft) | `PAY_WITH_SMALL_CAP` | **yes, every field** | Testnet gateway confirmed reading testnet: `getAccount` returned `evm_address` `0x975e40d1…c125a6b0`, `created_timestamp` `1789131390.679512817`. ageDays 2.0 from `checkedAtUnix` 1789307494, inboundPayments 25, historyTruncated true, maxPayment 1000000 / 0.0.0 / hedera:testnet. Tool calls in order: preflight → testnet getAccount → testnet getTransactions; no mainnet call. 50.5 s, 16,575 tokens |
 | 2 (cold) | `DO_NOT_PAY` | decision yes, **path no** | The Render testbed was asleep: Preflight P1 timed out 3/3 (41 s) → `DEAD` → recipe correctly stopped with no mirror calls. Right behaviour for that input, but not the case under test. Rerun warm |
 | 2 (v1 draft) | run **failed** | **no — critical** | Preflight correct (`UNKNOWN`, payee `0.0.999999999` testnet). The model then called `getAccount` on the **mainnet** gateway `xmtqdss7…` while saying "testnet", and the mirror's 404 aborted the run. Fixed in v2: mainnet bindings removed, `getAccounts` list lookup instead |
-| 2 | | | |
-| 3 | | | |
+| 2 (v2) | `DO_NOT_PAY` | **yes** | Preflight `UNKNOWN` (P1 ✓, P2 ✓ quote to `0.0.999999999`) → `getAccounts` on `/z3xelbmspbemzdfw3ufuo3pteq/` (testnet) → `{"accounts":[]}` → "payee 0.0.999999999 does not exist on Hedera testnet". 2 tool calls. The combined decision differs from Preflight alone — the case the recipe exists for. Quirk: the model passed `conversation_id` = checkedAtUnix, which no server had issued; the gateway accepted it |
+| 3 (v2) | `DO_NOT_PAY` | **yes** | verdict `DEAD` (404×3), payee null, 1 tool call, no mirror spend |
 | 4 | | | |
 | 5 | | | |
 | 6 | | | |
