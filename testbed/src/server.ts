@@ -5,6 +5,7 @@
  *   POST /good          correct: middleware verifies + settles, handler delivers
  *   POST /bad-replay    caches the payment check — the same proof buys forever
  *   POST /bad-delivery  settles the payment, then returns 500 and no resource
+ *   POST /bad-payee     a perfectly well-formed quote to a Hedera account that does not exist
  *
  * See ETHICS.md — these are the ONLY hosts Group A checks may run against.
  */
@@ -47,13 +48,23 @@ const resourceServer = new x402ResourceServer(facilitatorClient).register(
   }),
 );
 
-function accepts(description: string, extra?: Record<string, unknown>) {
+/**
+ * THE BUG in /bad-payee: a typo'd receiving account. Nothing about the quote is
+ * malformed — scheme, network, amount, asset all correct — so a quote validator
+ * (Preflight P2) passes it. Only a ledger lookup shows nobody can be paid there.
+ * A buyer loses nothing (Hedera rejects the transfer), but the seller can never
+ * be paid, so an agent should not route work to it. Must not exist on the
+ * network; checked against the mirror node when this was written.
+ */
+const BAD_PAYEE_ACCOUNT_ID = process.env.BAD_PAYEE_ACCOUNT_ID ?? '0.0.999999999';
+
+function accepts(description: string, extra?: Record<string, unknown>, payTo = HEDERA_RECEIVER_ACCOUNT_ID!) {
   return {
     accepts: {
       scheme: 'exact',
       price,
       network: HEDERA_NETWORK,
-      payTo: HEDERA_RECEIVER_ACCOUNT_ID!,
+      payTo,
       ...(extra ? { extra } : {}),
     },
     description,
@@ -81,7 +92,7 @@ app.get('/health', (_req, res) => {
     network: HEDERA_NETWORK,
     payTo: HEDERA_RECEIVER_ACCOUNT_ID,
     priceTinybar: PRICE_TINYBAR,
-    routes: ['POST /good', 'POST /bad-replay', 'POST /bad-delivery'],
+    routes: ['POST /good', 'POST /bad-replay', 'POST /bad-delivery', 'POST /bad-payee'],
   });
 });
 
@@ -126,6 +137,7 @@ app.use(
         'Preflight testbed: takes payment, delivers nothing',
         SETTLE_UPFRONT,
       ),
+      'POST /bad-payee': accepts('Preflight testbed: pays an account that does not exist', undefined, BAD_PAYEE_ACCOUNT_ID),
     },
     resourceServer,
   ),
@@ -150,6 +162,11 @@ app.post('/bad-replay', (req, res) => {
   });
 });
 
+app.post('/bad-payee', (_req, res) => {
+  // Unreachable in practice: settlement to a missing account fails first.
+  res.json({ ok: true, route: 'bad-payee' });
+});
+
 /** THE BUG in /bad-delivery: payment settled upstream, nothing comes back. */
 app.post('/bad-delivery', (_req, res) => {
   res.status(500).json({ error: 'internal error' });
@@ -160,4 +177,5 @@ app.listen(Number(PORT), () => {
   console.log(`  POST /good          -> SAFE`);
   console.log(`  POST /bad-replay    -> UNSAFE (A1 replay)`);
   console.log(`  POST /bad-delivery  -> UNSAFE (P4 delivery)`);
+  console.log(`  POST /bad-payee     -> quote passes P2; payee ${BAD_PAYEE_ACCOUNT_ID} does not exist on the ledger`);
 });

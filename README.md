@@ -322,16 +322,32 @@ never claims something the checks did not observe.
 - Three x402 endpoints of our own: [`testbed/src/server.ts`](./testbed/src/server.ts)
 - **Preflight is itself registered as ERC-8004 agent #119 on Hedera testnet** —
   [tx](https://hashscan.io/testnet/transaction/0xe10a31b584a0cf2dbfacd71b21482359416c7bba183d63b19083a4621882f99c),
-  registration stored fully on-chain as a base64 `data:` URI. Run through our
-  own classifier it currently rates `confirmed-no-endpoint`, because the paid
-  API is not yet hosted. We made no exception for our own entry.
+  registration stored fully on-chain as a base64 `data:` URI. Once the paid API
+  was hosted we pointed the entry at it
+  ([setAgentURI tx](https://hashscan.io/testnet/transaction/0x2610b4227e4767ba8963a7320ded2587ed6556ce0c6e6e2188b5fbc293455327));
+  our own classifier now rates it `confirmed-has-endpoint`. Before that it rated
+  `confirmed-no-endpoint` — we made no exception for our own entry.
   Evidence: [`data/agent-registration/`](./data/agent-registration/)
 - On-chain agent identity via **ERC-8004**, read directly from the registry:
   [`packages/registry/src/fetch-agents.ts`](./packages/registry/src/fetch-agents.ts)
-- **Harness contribution**: PR correcting the x402 v1/v2 payment header in
+- **Harness contribution**: [hedera-dev/hedera-harness#78](https://github.com/hedera-dev/hedera-harness/pull/78)
+  correcting the x402 v1/v2 payment header in
   `docs/prds/x402-metered-api.md` — patch and description in
   [`data/harness-pr/`](./data/harness-pr/), friction logged live in
   [`HEDERA_FEEDBACK.md`](./HEDERA_FEEDBACK.md)
+
+**Bazantic** — Preflight as an agent tool, composed with the Hedera mirror node.
+
+- Recipe *"Should my agent pay this x402 endpoint"*: Preflight pulls the payee
+  out of the quote, the mirror node for that same network checks the payee
+  exists, can receive, and has been paid before. Our `/bad-payee` testbed route
+  quotes perfectly (Preflight: `UNKNOWN`) and pays an account that doesn't
+  exist (combined: `DO_NOT_PAY`).
+- It refuses to cross networks: `0.0.10475917` is our receiver on testnet and an
+  unrelated funded account on mainnet.
+- Gateway upstream routes and spec: [`apps/api/src/gateway.ts`](./apps/api/src/gateway.ts) ·
+  decision rules as tested code: [`packages/checks/src/payee.ts`](./packages/checks/src/payee.ts) ·
+  recipe, oracle, test plan and setup: [`integrations/bazantic/`](./integrations/bazantic/)
 
 ## Honest limitations
 
@@ -346,6 +362,15 @@ never claims something the checks did not observe.
 - **A2–A4 not implemented.**
 - **Third-party verdicts can never be `SAFE`**, because we do not spend money
   against strangers. That falls out of the ethics boundary and is intentional.
+- **Private-address refusal is by hostname, not DNS.** Every front door refuses
+  loopback, private, link-local and metadata addresses, but a public name that
+  resolves to a private IP (DNS rebinding) is not caught.
+- **Cold starts read as dead.** The API and testbed are free Render instances.
+  A sleeping endpoint that doesn't answer within P1's timeout is reported
+  `DEAD`, ours included — which is accurate at the moment it was checked.
+- **The Bazantic recipe is a prompt.** It's tested against a code oracle
+  ([`integrations/bazantic/TEST_PLAN.md`](./integrations/bazantic/TEST_PLAN.md)),
+  but an LLM can still deviate; the oracle is how you'd notice.
 
 ## Docs
 

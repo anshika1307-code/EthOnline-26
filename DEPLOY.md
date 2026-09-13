@@ -86,6 +86,16 @@ unset and checks and payments work exactly as before, just without receipts.
 The topic has a submit key, so only this operator can write to it and a
 receipt cannot be forged. Create a new topic with `npx tsx src/create-topic.ts --send`.
 
+**Bazantic gateway upstream (optional).** Enables `POST /gw/check`,
+`POST /gw/liveness` and `GET /gw/openapi.json`. Unset → those routes 404.
+
+| Key | Value |
+|---|---|
+| `BAZANTIC_UPSTREAM_KEY` | a long random string, e.g. `openssl rand -hex 32` — **a secret**; paste the same value into the Bazantic gateway's API-key auth |
+| `PUBLIC_URL` | `https://ethonline-26.onrender.com` (written into the OpenAPI `servers` entry) |
+
+See [integrations/bazantic/README.md](integrations/bazantic/README.md).
+
 ---
 
 ## 3. Testbed → same pattern

@@ -40,6 +40,12 @@ export type GatewayResult = {
   checks: Array<{ id: string; outcome: string; summary: string; skippedReason: string | null }>;
   quote: { x402Version: number | null; scheme: string | null; network: string | null; amount: string | null; asset: string | null; payTo: string | null } | null;
   hederaPayTo: HederaPayTo | null;
+  /**
+   * When the check ran, as Unix seconds — the same unit as a mirror node's
+   * `created_timestamp`. A model has no reliable clock, so an account's age is
+   * computed against this rather than "now".
+   */
+  checkedAtUnix: number;
   note: string;
 };
 
@@ -90,6 +96,7 @@ export function toGatewayResult(run: CheckRun, depth: Depth): GatewayResult {
         }
       : null,
     hederaPayTo: hederaPayToFromQuote(q),
+    checkedAtUnix: Math.floor(Date.parse(run.generatedAt) / 1000) || Math.floor(Date.now() / 1000),
     note:
       'Passive checks only (no payment was made to the endpoint), so SAFE is never returned — the best case is UNKNOWN: alive and quoting correctly, delivery unverified.',
   };
@@ -137,7 +144,7 @@ const checkSchema = {
 
 const resultSchema = {
   type: 'object',
-  required: ['endpoint', 'depth', 'verdict', 'checks', 'quote', 'hederaPayTo', 'note'],
+  required: ['endpoint', 'depth', 'verdict', 'checks', 'quote', 'hederaPayTo', 'checkedAtUnix', 'note'],
   properties: {
     endpoint: { type: 'string' },
     depth: { type: 'string', enum: ['full', 'liveness'] },
@@ -179,6 +186,10 @@ const resultSchema = {
           },
         },
       ],
+    },
+    checkedAtUnix: {
+      type: 'integer',
+      description: 'When the check ran, in Unix seconds. Compare against a mirror node created_timestamp (seconds.nanoseconds) to get an account age.',
     },
     note: { type: 'string' },
   },

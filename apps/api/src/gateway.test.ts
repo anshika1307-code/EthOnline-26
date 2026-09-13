@@ -18,7 +18,7 @@ async function fakeRun(endpoint: string, depth: Depth): Promise<CheckRun> {
     verdict: 'UNKNOWN',
     checks: [{ id: 'P1', outcome: 'pass', summary: 'alive', observedAt: 'now' } as CheckRun['checks'][number]],
     activeChecksRun: false,
-    generatedAt: 'now',
+    generatedAt: '2026-09-13T12:00:00.000Z',
     rendered: '',
     quote: depth === 'full' ? { version: 2, scheme: 'exact', network: 'hedera:testnet', amount: '1000000', asset: '0.0.0', payTo: '0.0.10475917' } : null,
   };
@@ -73,6 +73,7 @@ describe('gateway — enabled', () => {
     assert.equal(body.depth, 'full');
     assert.equal(body.quote.payTo, '0.0.10475917');
     assert.deepEqual(body.hederaPayTo, { account: '0.0.10475917', network: 'testnet' });
+    assert.equal(body.checkedAtUnix, 1789300800);
     assert.deepEqual(calls.at(-1), { endpoint: 'https://a.acme.dev/', depth: 'full' });
   });
 

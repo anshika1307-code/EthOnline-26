@@ -15,30 +15,10 @@ import { checkLiveness } from '../../../../packages/checks/src/checks/p1-livenes
 import { checkQuote, checkPriceConsistency } from '../../../../packages/checks/src/checks/p2-quote';
 import { buildReport, renderReport } from '../../../../packages/checks/src/report';
 import type { CheckResult } from '../../../../packages/checks/src/types';
+import { forbiddenTargetReason } from '../../../../packages/checks/src/target-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-/** Hosts nobody should be able to make this server reach. */
-function isForbiddenTarget(url: URL): string | null {
-  const h = url.hostname.toLowerCase();
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'only http(s) is supported';
-  if (
-    h === 'localhost' ||
-    h === '127.0.0.1' ||
-    h === '0.0.0.0' ||
-    h === '::1' ||
-    h.endsWith('.local') ||
-    h.endsWith('.internal') ||
-    h.startsWith('10.') ||
-    h.startsWith('192.168.') ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
-    h === '169.254.169.254' // cloud metadata
-  ) {
-    return 'refusing to probe loopback, private or metadata addresses';
-  }
-  return null;
-}
 
 export async function POST(request: Request) {
   let body: { endpoint?: string };
@@ -58,7 +38,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'not a valid URL' }, { status: 400 });
   }
 
-  const forbidden = isForbiddenTarget(url);
+  const forbidden = forbiddenTargetReason(url);
   if (forbidden) return NextResponse.json({ error: forbidden }, { status: 400 });
 
   const checks: CheckResult[] = [];
