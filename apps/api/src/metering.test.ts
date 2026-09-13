@@ -68,3 +68,13 @@ describe('metering — rejects what it must not charge for', () => {
     assert.equal(priceForBody({ endpoints: max }), (UNIT_TINYBAR.full * BigInt(MAX_ENDPOINTS)).toString());
   });
 });
+
+describe('metering — never prices a request it would refuse to run', () => {
+  test('private and metadata targets are rejected, so they are never charged', () => {
+    for (const e of ['http://localhost:8403/check', 'http://169.254.169.254/latest', 'http://10.0.0.1/']) {
+      assert.equal(parseCheckRequest({ endpoint: e }).ok, false, e);
+    }
+    // One bad endpoint poisons the batch rather than being silently dropped.
+    assert.equal(parseCheckRequest({ endpoints: [A, 'http://127.0.0.1/'] }).ok, false);
+  });
+});

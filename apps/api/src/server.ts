@@ -33,12 +33,11 @@ import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { HTTPFacilitatorClient } from '@x402/core/server';
 import { ExactHederaScheme } from '@x402/hedera/exact/server';
 
-import { checkLiveness } from '../../../packages/checks/src/checks/p1-liveness';
-import { checkQuote, checkPriceConsistency } from '../../../packages/checks/src/checks/p2-quote';
-import { buildReport, renderReport } from '../../../packages/checks/src/report';
 import type { CheckResult } from '../../../packages/checks/src/types';
 import { hcsConfigured, submitReceipt, type Receipt } from './hcs';
-import { MAX_ENDPOINTS, UNIT_TINYBAR, parseCheckRequest, priceForBody, quoteTinybar, type CheckRequest } from './metering';
+import { MAX_ENDPOINTS, UNIT_TINYBAR, parseCheckRequest, priceForBody, quoteTinybar } from './metering';
+import { runChecks } from './run-checks';
+import { createGatewayRouter } from './gateway';
 
 const {
   HEDERA_RECEIVER_ACCOUNT_ID,
@@ -159,6 +158,20 @@ app.get('/pricing', (_req, res) => {
   });
 });
 
+/**
+ * Bazantic gateway upstream. Bazantic charges the agent (USDC over x402/MPP)
+ * and calls these routes with a shared key, so they sit outside the Hedera
+ * x402 middleware. Disabled unless BAZANTIC_UPSTREAM_KEY is set.
+ */
+app.use(
+  '/gw',
+  createGatewayRouter({
+    key: process.env.BAZANTIC_UPSTREAM_KEY,
+    publicUrl: process.env.PUBLIC_URL,
+    run: (endpoint, depth) => runChecks(endpoint, depth, 'bazantic-gateway'),
+  }),
+);
+
 app.use(
   paymentMiddleware(
     {
@@ -184,21 +197,6 @@ function badRequest(res: Response, message: string) {
   res.status(400).json({ error: message });
 }
 
-async function runChecks(endpoint: string, depth: CheckRequest['depth']) {
-  const checks: CheckResult[] = [];
-  // Passive only. See the abuse boundary at the top of this file.
-  checks.push(await checkLiveness(endpoint));
-  if (depth === 'full') {
-    const { check: p2, quote } = await checkQuote(endpoint);
-    checks.push(p2);
-    // No registration metadata in scope for an ad-hoc URL, so P3 has nothing
-    // advertised to compare against and reports why rather than guessing.
-    checks.push(checkPriceConsistency(quote, null));
-  }
-  const report = buildReport({ endpoint, chain: HEDERA_NETWORK }, checks);
-  return { ...report, rendered: renderReport(report, { anonymise: false }) };
-}
-
 app.post('/check', async (req: Request, res: Response) => {
   // The same parser that priced this request decides the work, so what runs
   // is exactly what was paid for.
@@ -214,7 +212,13 @@ app.post('/check', async (req: Request, res: Response) => {
   };
   const note = 'Passive checks only. Adversarial checks are never run against third parties (ETHICS.md).';
 
-  const reports = await Promise.all(endpoints.map((e) => runChecks(e, depth)));
+  // `quote` is internal to the run; this route's response shape is unchanged.
+  const reports = await Promise.all(
+    endpoints.map(async (e) => {
+      const { quote: _quote, ...report } = await runChecks(e, depth, HEDERA_NETWORK);
+      return report;
+    }),
+  );
 
   // `{ endpoint }` keeps its original response shape so existing callers
   // (including the buyer agent) are unaffected.
@@ -227,5 +231,6 @@ app.listen(Number(PORT), () => {
   console.log(`  GET  /health   free`);
   console.log(`  GET  /pricing  free`);
   console.log(`  POST /check    metered: ${UNIT_TINYBAR.full} tinybar/endpoint full, ${UNIT_TINYBAR.liveness} liveness (max ${MAX_ENDPOINTS}) -> payTo ${HEDERA_RECEIVER_ACCOUNT_ID}`);
+  console.log(`  POST /gw/check  ${process.env.BAZANTIC_UPSTREAM_KEY ? 'Bazantic gateway upstream (key required)' : 'disabled — BAZANTIC_UPSTREAM_KEY not set'}`);
   console.log(`  GET  /receipts ${hcsConfigured() ? `HCS audit trail on ${process.env.HCS_TOPIC_ID}` : 'HCS not configured'}`);
 });

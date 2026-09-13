@@ -17,6 +17,8 @@
  * while getting one.
  */
 
+import { forbiddenTargetReason } from '../../../packages/checks/src/target-guard';
+
 /** Tinybar per endpoint, by depth. 1 HBAR = 100,000,000 tinybar. */
 export const UNIT_TINYBAR = {
   liveness: 40_000n,
@@ -62,9 +64,8 @@ export function parseCheckRequest(body: unknown): ParseResult {
     } catch {
       return { ok: false, error: `not a valid URL: ${e.slice(0, 80)}` };
     }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return { ok: false, error: `only http(s) endpoints can be checked: ${e.slice(0, 80)}` };
-    }
+    const forbidden = forbiddenTargetReason(url);
+    if (forbidden) return { ok: false, error: `${forbidden}: ${e.slice(0, 80)}` };
   }
 
   return { ok: true, request: { endpoints: unique, depth } };
