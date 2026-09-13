@@ -196,6 +196,47 @@ advertise its price on-chain in a way a buyer's software can check.** Price
 consistency is unverifiable by construction, not because agents are hiding
 anything.
 
+## P5 (discovery concentration)
+
+P5 is a property of the shortlist, not of one endpoint. If most of the registry
+resolves to one domain, "pick an agent from the registry" is really "use that
+provider", and the payment flow inherits whatever that provider does. Paper 1
+(arXiv:2605.11781) treats discovery as an attack surface for exactly this
+reason, measuring 13,760 endpoints across 420 domains with the top domain at
+77.5% and the top nine at 87.8%.
+
+Grouping is by registrable domain (subdomains collapsed, e.g.
+`mesh.heurist.xyz` → `heurist.xyz`). Without a full Public Suffix List this is
+an approximation with a small hard-coded list of multi-part suffixes; distinct
+host counts are reported alongside so the grouping is visible.
+
+Domains are **anonymised** in output (`domain-1`, `domain-2`, …). Paper 1
+anonymised them too — the finding is the concentration, not who is
+concentrated (ETHICS.md rule 7).
+
+`warn` above a top-domain share of **50%**, stated as a constant
+(`CONCENTRATION_WARN_THRESHOLD`) so a reader can disagree with the number.
+
+### Current sample is too small to make a concentration claim
+
+At n=500 agents sampled, only 8 declared endpoints exist across 2 domains. A
+"top domain = 50%" over 8 endpoints is not a finding — with two domains,
+"top 3 = 100%" is arithmetic, not evidence. **P5 is implemented and tested but
+under-powered until a wider scan runs**; Paper 1's corpus was three orders of
+magnitude larger.
+
+The concentration number that *is* well-powered from this sample is ownership,
+measured over all 500 scanned agents rather than only the 6 that declared an
+endpoint: **85 unique owners, top owner 14.2%, top three 36.2%, top ten
+71.4%** — and that shape held steady from n=200 to n=500, so it is not
+sampling noise.
+
+Note the two denominators answer different questions and should not be mixed:
+ownership across *all scanned agents* (85 owners / 500) versus ownership among
+*endpoint-declaring agents only* (2 owners / 6). The run output reports the
+latter because P5 is scoped to the endpoint shortlist; the registry-wide figure
+is the one to quote.
+
 ## P4 (delivery) — and why settlement phase decides the result
 
 P4 makes one ordinary payment and checks whether the resource comes back.

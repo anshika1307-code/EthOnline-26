@@ -49,6 +49,15 @@ const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS?.trim() || '10000')
 // it gets more time, since a slow-but-alive gateway beats moving on too soon.
 const IPFS_RETRY_TIMEOUT_MS = Number(process.env.IPFS_RETRY_TIMEOUT_MS?.trim() || '20000');
 const IPFS_MIN_INTERVAL_MS = Number(process.env.IPFS_DELAY_MS?.trim() || '300');
+/** Agents resolved in parallel. data: URIs are instant and https: are independent. */
+const CONCURRENCY = Number(process.env.CONCURRENCY?.trim() || '12');
+/**
+ * After this many CONSECUTIVE total IPFS failures, stop attempting IPFS for the
+ * rest of the run and record the remainder as unknown-gateway-failed with the
+ * reason. Without this a full-registry scan spends hours re-confirming that the
+ * public gateways are refusing us. Set 0 to disable.
+ */
+const IPFS_CIRCUIT_BREAK_AFTER = Number(process.env.IPFS_CIRCUIT_BREAK_AFTER?.trim() || '40');
 const IPFS_MAX_429_RETRIES = 2;
 
 // RFC 2606 reserved domains/TLDs — used to separate obvious placeholder
@@ -120,6 +129,33 @@ type AgentResult = {
   hasServiceEndpointUrl: boolean;
 };
 
+/**
+ * Run `fn` over `items` with at most `limit` in flight, preserving input order
+ * in the output. Progress is reported per completion, not per start, so the
+ * ticker reflects work actually finished.
+ */
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+  onDone?: (r: R, done: number) => void,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  let done = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i], i);
+      done++;
+      onDone?.(out[i], done);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 function hostOf(url: string): string {
   try {
     return new URL(url).host;
@@ -161,9 +197,11 @@ async function findHighestAgentId(client: Client): Promise<bigint> {
 
 /** Probe tokenURI for a contiguous window of IDs; skip IDs that revert (burned/gap). */
 async function enumerateViaProbe(client: Client, count: number): Promise<AgentRef[]> {
-  const refs: AgentRef[] = [];
+  const ids: bigint[] = [];
   const end = START_ID + BigInt(count);
-  for (let id = START_ID; id < end; id++) {
+  for (let id = START_ID; id < end; id++) ids.push(id);
+
+  const probed = await mapPool(ids, CONCURRENCY, async (id) => {
     try {
       const agentURI = await client.readContract({
         address: IDENTITY_REGISTRY,
@@ -171,12 +209,12 @@ async function enumerateViaProbe(client: Client, count: number): Promise<AgentRe
         functionName: 'tokenURI',
         args: [id],
       });
-      refs.push({ agentId: id, agentURI });
+      return { agentId: id, agentURI } as AgentRef;
     } catch {
-      /* gap — agent never minted or burned */
+      return null; // gap — agent never minted or burned
     }
-  }
-  return refs;
+  });
+  return probed.filter((r): r is AgentRef => r !== null);
 }
 
 /** Read Registered events over [START_BLOCK, toBlock] in chunks. */
@@ -237,6 +275,24 @@ function sleep(ms: number): Promise<void> {
 // IPFS_GATEWAYS on timeout/error/exhausted retries. The first gateway uses
 // the normal timeout; every fallback attempt after it gets more time.
 let ipfsLastRequestAt = 0;
+/**
+ * IPFS work is serialized through this chain even while the outer pool runs
+ * agents in parallel — the gateways rate-limit on total request rate, so
+ * parallelising them just produces more 429s.
+ */
+let ipfsQueue: Promise<unknown> = Promise.resolve();
+function enqueueIpfs<T>(fn: () => Promise<T>): Promise<T> {
+  const next = ipfsQueue.then(fn, fn);
+  ipfsQueue = next.catch(() => undefined);
+  return next;
+}
+
+/** Consecutive all-gateway failures; trips the breaker so the scan stays tractable. */
+let ipfsConsecutiveFailures = 0;
+export function ipfsCircuitOpen(): boolean {
+  return IPFS_CIRCUIT_BREAK_AFTER > 0 && ipfsConsecutiveFailures >= IPFS_CIRCUIT_BREAK_AFTER;
+}
+
 async function fetchIpfsThrottled(url: string, timeoutMs: number): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const wait = ipfsLastRequestAt + IPFS_MIN_INTERVAL_MS - Date.now();
@@ -257,21 +313,31 @@ async function fetchIpfsThrottled(url: string, timeoutMs: number): Promise<Respo
 async function fetchIpfsWithFallback(
   cidPath: string,
 ): Promise<{ res: Response; attempts: string[] }> {
+  if (ipfsCircuitOpen()) {
+    throw new Error(
+      `IPFS gateway circuit open: ${ipfsConsecutiveFailures} consecutive all-gateway failures, ` +
+        `stopped attempting IPFS for this run (set IPFS_CIRCUIT_BREAK_AFTER=0 to disable)`,
+    );
+  }
   const attempts: string[] = [];
   let lastError: unknown;
   for (let i = 0; i < IPFS_GATEWAYS.length; i++) {
     const url = IPFS_GATEWAYS[i] + cidPath;
     const timeoutMs = i === 0 ? FETCH_TIMEOUT_MS : IPFS_RETRY_TIMEOUT_MS;
     try {
-      const res = await fetchIpfsThrottled(url, timeoutMs);
+      const res = await enqueueIpfs(() => fetchIpfsThrottled(url, timeoutMs));
       attempts.push(`${hostOf(url)}: HTTP ${res.status}`);
-      if (res.ok) return { res, attempts };
+      if (res.ok) {
+        ipfsConsecutiveFailures = 0;
+        return { res, attempts };
+      }
       lastError = new Error(`HTTP ${res.status}`);
     } catch (err) {
       attempts.push(`${hostOf(url)}: ${err instanceof Error ? err.message : String(err)}`);
       lastError = err;
     }
   }
+  ipfsConsecutiveFailures++;
   throw Object.assign(
     new Error(
       `all ${IPFS_GATEWAYS.length} gateways failed: ${attempts.join(' | ')}`,
@@ -307,6 +373,39 @@ async function resolveMetadata(
   throw new Error(`unsupported URI scheme: ${agentURI.slice(0, 24)}`);
 }
 
+/**
+ * `services[]` entries whose name marks them as a homepage, social profile or
+ * docs link rather than something an agent could call. Counting these inflates
+ * the endpoint number badly: in a full-registry scan, 66 of 184 "endpoint-
+ * declaring" agents declared nothing but a website and a Twitter profile.
+ */
+const NON_SERVICE_NAMES = new Set([
+  'web', 'website', 'homepage', 'twitter', 'x', 'github', 'docs', 'documentation',
+  'discord', 'telegram', 'email', 'blog',
+]);
+
+/**
+ * Hosts that cannot be reached by anyone but the agent's own author —
+ * loopback, RFC 1918 private ranges, and RFC 2606 reserved names. A declared
+ * `http://localhost:8080` is not a service anyone can buy from. 43 endpoints
+ * in the full registry point at localhost.
+ */
+function isUnreachableHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (JUNK_HOSTS.has(h) || JUNK_TLDS.some((tld) => h.endsWith(tld))) return true;
+  if (h === '127.0.0.1' || h === '0.0.0.0' || h === '::1' || h.endsWith('.local')) return true;
+  if (h.startsWith('10.') || h.startsWith('192.168.')) return true;
+  return /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+}
+
+/**
+ * Endpoints an agent actually offers as a callable service.
+ *
+ * Deliberately narrower than "any http(s) string in services[]": the question
+ * is whether something is payable and callable, so a homepage or an
+ * unreachable host does not count. Excluded entries are still returned in
+ * `services` so the raw claim stays inspectable.
+ */
 function extractServiceEndpointUrls(metadata: Record<string, unknown>): {
   services: unknown[];
   urls: string[];
@@ -314,12 +413,17 @@ function extractServiceEndpointUrls(metadata: Record<string, unknown>): {
   const services = Array.isArray(metadata.services) ? metadata.services : [];
   const urls: string[] = [];
   for (const svc of services) {
-    if (svc && typeof svc === 'object') {
-      const endpoint = (svc as Record<string, unknown>).endpoint;
-      if (typeof endpoint === 'string' && /^https?:\/\//i.test(endpoint)) {
-        urls.push(endpoint);
-      }
+    if (!svc || typeof svc !== 'object') continue;
+    const entry = svc as Record<string, unknown>;
+    const endpoint = entry.endpoint;
+    if (typeof endpoint !== 'string' || !/^https?:\/\//i.test(endpoint)) continue;
+    if (NON_SERVICE_NAMES.has(String(entry.name ?? '').toLowerCase())) continue;
+    try {
+      if (isUnreachableHost(new URL(endpoint).hostname)) continue;
+    } catch {
+      continue;
     }
+    urls.push(endpoint);
   }
   return { services, urls };
 }
@@ -367,8 +471,11 @@ async function main() {
 
   console.log(`Resolving metadata for ${refs.length} agent(s)...\n`);
 
-  const results: AgentResult[] = [];
-  for (const ref of refs) {
+  const startedAt = Date.now();
+  const results: AgentResult[] = await mapPool(
+    refs,
+    CONCURRENCY,
+    async (ref) => {
     const result: AgentResult = {
       agentId: ref.agentId.toString(),
       agentURI: ref.agentURI,
@@ -408,17 +515,30 @@ async function main() {
       result.services,
       result.serviceEndpointUrls,
     );
-    results.push(result);
-    const marker: Record<Category, string> = {
-      'confirmed-has-endpoint': '+',
-      'confirmed-empty': '.',
-      'confirmed-no-endpoint': 'o',
-      'no-uri': '_',
-      'junk-placeholder': 'j',
-      'unknown-gateway-failed': 'x',
-    };
-    process.stdout.write(marker[result.category]);
-  }
+    return result;
+    },
+    (result, done) => {
+      const marker: Record<Category, string> = {
+        'confirmed-has-endpoint': '+',
+        'confirmed-empty': '.',
+        'confirmed-no-endpoint': 'o',
+        'no-uri': '_',
+        'junk-placeholder': 'j',
+        'unknown-gateway-failed': 'x',
+      };
+      process.stdout.write(marker[result.category]);
+      // Periodic heartbeat so a long run shows rate and ETA rather than a wall of dots.
+      if (done % 250 === 0 || done === refs.length) {
+        const elapsed = (Date.now() - startedAt) / 1000;
+        const rate = done / Math.max(elapsed, 0.001);
+        const eta = Math.round((refs.length - done) / Math.max(rate, 0.001));
+        process.stdout.write(
+          `\n  [${done}/${refs.length}] ${rate.toFixed(1)}/s  eta ${Math.floor(eta / 60)}m${eta % 60}s` +
+            `${ipfsCircuitOpen() ? '  (IPFS circuit OPEN)' : ''}\n`,
+        );
+      }
+    },
+  );
   console.log('\n');
 
   const counts: Record<Category, AgentResult[]> = {

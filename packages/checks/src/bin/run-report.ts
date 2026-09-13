@@ -151,6 +151,18 @@ writeFileSync(
       concentration,
       reports: reports.map(({ report, opts }) => ({
         ...report,
+        // Pre-computed display string so consumers (the dashboard) cannot
+        // accidentally render the raw host while claiming anonymisation.
+        display: opts.anonymise
+          ? `<${opts.anonymousId}>${(() => {
+              try {
+                const u = new URL(report.target.endpoint ?? '');
+                return u.pathname === '/' ? '' : u.pathname;
+              } catch {
+                return '';
+              }
+            })()}`
+          : (report.target.endpoint ?? ''),
         rendered: renderReport(report, opts),
       })),
     },
