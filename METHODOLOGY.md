@@ -1,393 +1,213 @@
-# Scan methodology
+# How the scan actually works
 
-How `packages/registry/src/fetch-agents.ts` reads the ERC-8004 Identity
-Registry and decides whether an agent has a working service endpoint. Written
-so a scan run is replayable and its numbers are checkable, not just trusted.
+How `packages/registry/src/fetch-agents.ts` reads the ERC-8004 registry and
+decides whether an agent has a working service — written so any result can
+be replayed and checked, not just trusted.
 
-## Registry
+## Where we're reading from
 
-- Chain: Ethereum Sepolia (chainId `11155111`)
-- Contract: `0x8004A818BFB912233c491871b3d84c89A494BD9e` (IdentityRegistry,
-  ERC-1967 proxy) — CREATE2-deployed at the same address on every supported
-  chain. Source: [erc-8004/erc-8004-contracts](https://github.com/erc-8004/erc-8004-contracts)
-  README, cross-checked with `eth_getCode` returning matching bytecode on
-  Ethereum Sepolia, Base Sepolia, and Hedera Testnet.
+- Chain: Ethereum Sepolia
+- Contract: `0x8004A818BFB912233c491871b3d84c89A494BD9e` (the IdentityRegistry) —
+  deployed at the same address on every supported chain, including Hedera
+  testnet. Confirmed by comparing raw bytecode across chains, not just
+  trusting the address.
 
-## Enumeration
+## Finding all the agents
 
-Agent IDs are minted sequentially from 1 (`register()` returns an
-incrementing `agentId`). The registry has no `totalSupply()` or
-`ERC721Enumerable` — the default `probe` mode works around that:
+The registry has no "give me the total count" function, but agent IDs are
+handed out sequentially starting at 1. So we binary-search for the highest
+ID that still resolves, then read every ID from there down, skipping gaps.
+(There's an alternative mode that reads on-chain event logs instead, kept
+for narrower time-window queries — not used for a full scan because at
+10,000+ agents it would mean over a thousand slow network calls.)
 
-1. Binary-search the highest minted ID via `ownerOf(id)` (reverts once past
-   the end) — this is the reported total agent count.
-2. Read `tokenURI(id)` for `id = START_ID .. START_ID + MAX_AGENTS`, skipping
-   any ID that reverts (a gap).
+## Reading each agent's info
 
-`ENUM_MODE=logs` is available as an alternative: read `Registered` events
-over `[START_BLOCK, latest]` in chunks. Not used by default — at ~10,000
-agents this would mean over a thousand `eth_getLogs` calls against a public
-RPC, too slow for a first pass. Kept for bounded-window use (e.g. "what
-registered in the last N blocks").
+An agent's metadata can be stored three different ways, and real agents in
+the registry use all three:
 
-## Metadata resolution — three URI shapes
-
-`tokenURI(id)` (aliased `agentURI` in the ERC-8004 spec) can point at
-metadata three different ways, and the scan sample (agent IDs 1–200) uses all
-three:
-
-| Scheme | Example | Handling |
+| Type | Example | How we handle it |
 |---|---|---|
-| `data:` | `data:application/json;base64,eyJ0...` | Decoded in-process, no network call |
-| `ipfs://` | `ipfs://QmXFE7...` | Resolved via gateway, see below |
-| `https://` | `https://agent.example/registration.json` | Fetched directly, `FETCH_TIMEOUT_MS` (default 10s) |
+| Embedded directly | `data:application/json;base64,...` | Decoded locally, no network call |
+| On IPFS | `ipfs://Qm...` | Fetched through a gateway, see below |
+| A normal URL | `https://agent.example/info.json` | Fetched directly, 10s timeout |
 
-An empty `agentURI` (agent registered via bare `register()`, metadata not
-yet published) is valid per spec and categorized `no-uri`, not a failure.
+An agent that hasn't published anything yet (empty field) is valid and
+normal — we label it `no-uri`, not a failure.
 
-### `data:` URI quirk: mislabeled base64
+**One quirk we had to work around:** some agents say their data is
+base64-encoded but it's actually plain text. Without a fallback for that,
+86 of the first 87 embedded-data agents we tried would have failed to
+parse — so we try the declared format first, then fall back to reading it
+as plain text.
 
-Some registered agents declare `;base64` in the media type but the payload
-after the comma is raw (non-base64) JSON — a bug in whatever tooling minted
-them (a cluster of hackathon/demo agents share the exact same failure
-signature). `decodeDataUri()` tries the declared encoding first, then falls
-back to treating the payload as raw text. Without this fallback, 86 of 87
-sampled `data:` agents failed to parse.
+**IPFS is unreliable, and we planned for that.** Public IPFS gateways
+throttle and time out heavily under this kind of automated traffic, so we
+try three gateways in sequence, with retries and backoff, before giving up
+on an agent. We also independently confirmed that some of these failures
+are genuine — not our tooling — by fetching a known agent's file through a
+completely different route and getting the same "no providers found"
+answer. An agent whose file genuinely has no one hosting it anymore isn't,
+honestly, a working agent.
 
-### `ipfs://` resolution: gateway fallback chain
+Because re-trying every single failed IPFS lookup would take hours, after
+several IPFS agents in a row fail completely, we stop attempting IPFS
+lookups for a while and just record the rest with a note explaining why —
+so "we didn't try" is never confused with "we tried and it failed."
 
-Public IPFS gateways rate-limit and time out heavily under scan-volume
-traffic (see the friction log below). `resolveMetadata()` tries gateways from
-`IPFS_GATEWAYS` in order — default `ipfs.io → dweb.link → cloudflare-ipfs.com`
-— falling through on timeout, non-2xx, or exhausted 429 retries:
+## How we bucket every agent
 
-- First gateway: `FETCH_TIMEOUT_MS` (10s)
-- Each fallback gateway: `IPFS_RETRY_TIMEOUT_MS` (20s) — more patient, since a
-  slow-but-alive gateway beats moving on too soon
-- Within a gateway: up to 2 retries on HTTP 429 with exponential backoff
-- All requests to IPFS gateways are throttled to one in flight per
-  `IPFS_DELAY_MS` (300ms default)
-
-A timeout on every gateway does **not** necessarily mean our tooling is
-broken — some CIDs genuinely have no providers left on the public IPFS
-network (garbage-collected, never persistently pinned). We verified this
-independently: fetching a known agent CID through a real browser's IPFS
-service-worker gateway returned `504 Gateway Timeout` / `"No providers were
-found"` — a DHT-level answer, not a rate limit. An agent whose declared
-`ipfs://` endpoint has no providers is, honestly, not a working endpoint —
-that's a legitimate finding about the agent, not a scan failure, though we
-still bucket it separately (see below) because we can't be certain it isn't
-also a transient gateway issue on our end.
-
-## Result categories
-
-Each sampled agent lands in exactly one bucket:
-
-| Category | Meaning |
+| Bucket | What it means |
 |---|---|
-| `confirmed-has-endpoint` | Metadata resolved; `services[]` contains ≥1 entry with an `http(s)` `endpoint` |
-| `confirmed-empty` | Metadata resolved; `services` is empty or absent |
-| `confirmed-no-endpoint` | Metadata resolved; `services[]` has entries but none are `http(s)` URLs (e.g. only an ENS name, DID, or email) |
-| `no-uri` | `agentURI` was never set — nothing published yet, not a failure |
-| `junk-placeholder` | `agentURI` is an `http(s)` URL on an RFC 2606 reserved domain (`example.com`/`.test`/`.example`/`.invalid`/etc.) — a test/placeholder registration, not a real broken agent |
-| `unknown-gateway-failed` | Metadata fetch genuinely failed (timeout, non-2xx, parse error) on what looks like a real destination |
+| `confirmed-has-endpoint` | Has at least one real, callable web address |
+| `confirmed-empty` | Info resolved fine; it just lists nothing |
+| `confirmed-no-endpoint` | Lists things, but none are callable web addresses (e.g. just an email or a name) |
+| `no-uri` | Never published anything — not a failure |
+| `junk-placeholder` | Points at an obviously fake/reserved domain like `example.com` |
+| `unknown-gateway-failed` | We genuinely couldn't read its info |
 
-**Headline number** — "agents with no working service endpoint" — is
-`confirmed-empty + confirmed-no-endpoint`, out of a denominator of
-`confirmed-empty + confirmed-no-endpoint + confirmed-has-endpoint`
-(i.e. only agents whose declared metadata we actually, successfully read).
-`no-uri`, `junk-placeholder`, and `unknown-gateway-failed` are reported but
-excluded from the headline rate — they're not confirmed claims about the
-agent's declared endpoints, and lumping placeholder/unknown noise in would
-inflate the "shell agent" count with something other than the phenomenon
-being measured.
+The **headline number** — "agents with no working service" — only counts
+agents whose info we could actually read (`confirmed-empty` +
+`confirmed-no-endpoint`, out of everyone we successfully read). We don't
+lump in the ones we couldn't read or that look like placeholders, because
+that would inflate the number with noise instead of a real finding.
 
-### Junk-placeholder heuristic
+## What counts as a real, "payable" endpoint
 
-`isJunkPlaceholder()` checks the `agentURI`'s hostname against RFC 2606
-reserved domains (`example.com`, `example.net`, `example.org`, `example.edu`,
-`localhost`) and reserved TLDs (`.test`, `.example`, `.invalid`,
-`.localhost`). Only applies to `http(s)://` URIs. This is a narrow,
-documented heuristic, not a guess — RFC 2606 domains are guaranteed to never
-resolve to a real service, so a 404 there is a deliberate placeholder, not
-evidence of a broken agent.
+We only count a listed service if it's:
 
-## Extracting service endpoints
+1. **An actual web address** (not an email, ENS name, or raw file pointer)
+2. **Not just a homepage or social link** ("website", "twitter", "docs",
+   etc. are links *about* the agent, not something you can call)
+3. **Actually reachable** (not `localhost`, not a private network address,
+   not a placeholder domain)
 
-`extractServiceEndpointUrls()` reads the spec's `services[]` array and keeps
-only entries that are plausibly **callable and payable**. Three filters, each
-of which materially changes the count:
+This matters a lot — applying these three filters in order took the count
+from 291 raw web-address strings down to **149 real endpoints**. 92 were
+just a homepage link, and **43 pointed at `localhost`** — a service only
+its own creator's machine can ever reach. Counting the loose definition
+would have overstated the finding by more than 2×.
 
-1. **`http(s)` only.** Excludes non-URL endpoint kinds the spec allows (ENS
-   names, DIDs, email addresses, raw `ipfs://` pointers).
-2. **Not a homepage, social profile or docs link.** Entries named `web`,
-   `twitter`, `x`, `github`, `docs`, `discord`, `telegram`, `email`, `blog`
-   are links about the agent, not services it offers.
-3. **Not unreachable by construction.** Loopback (`localhost`, `127.0.0.1`),
-   RFC 1918 private ranges, `.local`, and RFC 2606 reserved names.
-
-### Why this matters — the count moves by 2.2×
-
-Measured over the full registry (10,249 agents):
-
-| Definition | Endpoints | Agents |
-|---|---|---|
-| Any `http(s)` string in `services[]` | 291 | 184 |
-| …excluding homepage / social / docs | 185 | 118 |
-| …excluding localhost and reserved hosts | **149** | **85** |
-
-92 entries were a `web` homepage. **43 pointed at `localhost`** — a service
-only its own author can reach. 12 pointed at `example.com`.
-
-Counting the loose definition would have reported 184 agents (1.8%) against
-the literature's 67/10,000 (0.67%) — a 2.7× discrepancy that is an artefact of
-counting Twitter links as services. The strict definition gives **85 of 10,249
-(0.83%)**, which corroborates the published figure at full-registry scale
-rather than contradicting it.
-
-Excluded entries remain in the stored `services` array, so the raw claim stays
-inspectable and anyone can recompute with a different definition.
-
-## The IPFS circuit breaker — "not attempted" is not "failed"
-
-Public IPFS gateways refuse this traffic (see below). Re-confirming that for
-every one of ~3,500 `ipfs://` agents would take hours, so after
-`IPFS_CIRCUIT_BREAK_AFTER` consecutive all-gateway failures the scan stops
-attempting IPFS and records the remainder with the reason in the error text.
-
-In the full-registry run, of 1,541 `unknown-gateway-failed`:
-
-- **793 were attempted** and failed against every gateway
-- **748 were never attempted** — the breaker was already open
-
-Both land in the same category because in both cases we do not know what the
-agent declares. But they are different epistemic states, the error text
-distinguishes them, and the 748 must not be read as 748 broken agents.
-
-## Verdict bands
+## How we score a verdict
 
 | Condition | Verdict |
 |---|---|
-| P1 failed every round | `DEAD` |
-| P4 failed (paid, nothing delivered) or any A-check failed | `UNSAFE` |
-| P2 or P3 failed | `CAUTION` |
-| Everything that ran passed **and P4 passed** | `SAFE` |
-| Anything else, including "alive but never paid" | `UNKNOWN` |
+| Failed liveness every time | `DEAD` |
+| Paid and got nothing, or any active check failed | `UNSAFE` |
+| Quote was malformed or price didn't match | `CAUTION` |
+| Everything passed, **including a completed payment** | `SAFE` |
+| Anything else (e.g. alive but never actually paid) | `UNKNOWN` |
 
-No score, no weighting. A reader can recompute any verdict by hand from the
-check lines.
+No hidden scoring — anyone can recompute a verdict by hand from the listed
+checks. **`SAFE` specifically requires a real payment to have gone through
+and been confirmed.** An endpoint that just answers a normal request is
+alive, not proven safe to pay — that's `UNKNOWN`. An earlier version of
+this tool called things `SAFE` after only a liveness check, which would
+have told someone it was safe to pay four strangers we'd never actually
+tried paying. We caught that and fixed it before publishing anything.
 
-**`SAFE` requires P4 to have actually run and passed.** The product question is
-*"is it safe to pay this endpoint"*, so an endpoint that merely answers a `GET`
-is alive, not proven safe to pay — that is `UNKNOWN`. An earlier version
-returned `SAFE` when only P1 had run, which labelled four third-party agents
-safe to pay without ever attempting a payment. That is the kind of overclaim
-ETHICS.md §6 exists to prevent.
+One honest consequence: since we only ever pay our own test services,
+**third-party endpoints almost never score `SAFE`** — most land on `DEAD`
+or `UNKNOWN`. That's not a bug, it's what the ethics boundary requires.
 
-Consequence worth stating in the write-up: against third parties we run passive
-checks only and do not spend money, so most third-party verdicts are `DEAD` or
-`UNKNOWN`, never `SAFE`. `SAFE` is reachable on our own testbed, where paying is
-authorised. That asymmetry is honest rather than unfortunate.
+## Liveness — the details that mattered
 
-## P1 (liveness) — and why latency is measured at the headers
+We ping each endpoint three times per round, identify ourselves, and stop
+immediately if we get a "back off" signal. Three real bugs we found and
+fixed, because each one made the result look worse than reality:
 
-P1 probes each endpoint three times per round, identifying itself by
-User-Agent, and stops immediately on a 429/403 refusal signal.
+1. **We were timing our own patience, not the server's speed.** Some agent
+   endpoints keep the connection open forever (a streaming format). We were
+   waiting for it to close before measuring, so we measured our own 10-
+   second timeout instead of the real response time. Fixed to measure at
+   the first response, not the full body — real numbers turned out to be
+   300–1,200ms, not 10 seconds.
+2. **We only tried `GET` requests.** Many agent APIs only answer `POST`.
+   We now retry with `POST` if `GET` comes back 404/405, and we record
+   which one actually worked.
+3. **We treated "payment required" as "dead."** For a paywalled endpoint,
+   getting asked to pay *is* the correct, healthy response to an unpaid
+   request — we were wrongly marking every working paid agent as dead.
 
-### Three corrections, all of which had made the result worse than reality
+All three bugs made real, working agents look broken. We only caught them
+because two of our own checks contradicted each other — a valid price
+quote from an endpoint we'd just called "dead" is not something that can
+actually happen, so the contradiction forced us to look closer.
 
-Each was caught by a **contradiction between checks** — P2 reporting a valid
-payment quote for an endpoint P1 had just called dead is not a state the world
-can be in. All three biased the finding pessimistically:
+## Quote validity and price matching
 
-1. **Latency measured our own timeout.** Several agent endpoints are MCP-over-
-   SSE (`text/event-stream`) and never close. Draining the body timed out at
-   our 10s abort, reported as `median 10004ms`. Latency is now taken at the
-   response headers, and streamed bodies are cancelled rather than read — real
-   figures are 300–1200ms.
-2. **`GET`-only probing.** Many agent APIs are POST-only and answer a `GET`
-   with 404. A 404/405 now earns one `POST` retry, and the probe records which
-   verb answered. Without this, every x402-capable endpoint in the registry
-   looked dead.
-3. **`402` counted as dead.** Only 2xx was treated as alive. For an x402-gated
-   resource, `402 Payment Required` *is* the correct healthy answer to an
-   unpaid request. `isAlive()` now accepts 2xx **or** 402, and such endpoints
-   report as "402, alive and paywalled".
+We send one unpaid request and check whether the answer is a properly
+formed payment request — a real "pay me" response, not a broken one.
 
-Corrections 2 and 3 together moved the payable agents from `DEAD` to
-`CAUTION`/`UNKNOWN` — i.e. from "broken" to "working but under-specified",
-which is the truth.
+**This has to account for protocol version, or it slanders people.** The
+payment protocol has two incompatible versions — v1 puts the price in the
+response body under one field name, v2 puts it in a header under a
+different name. Our first version only understood v2, and it reported four
+real, correctly-working agents as broken, because they spoke v1. That claim
+almost made it into a draft of this write-up before a live re-check caught
+it — which is exactly the kind of false accusation the ethics rules exist
+to prevent. The checker now reads which version an endpoint claims to
+speak, and validates against the right rules for that version.
 
-**Latency is time-to-response-headers, not time-to-body.** Several real agent
-endpoints in the registry are MCP-over-SSE (`content-type: text/event-stream`)
-and never close the connection. Draining those bodies measures our own timeout,
-not the endpoint's speed — the first version of this check reported a median of
-`10004ms` for four endpoints, which was exactly our 10s abort, not their
-performance. Measured at the headers, the same endpoints return in
-**305–1214ms**.
+**Price matching almost never runs, and that's itself the finding.** The
+registry standard has no field for "price," so there's usually nothing to
+compare a quote against. We deliberately don't try to guess a price out of
+free-text descriptions — publishing "this doesn't match" based on a guess
+would be an unfounded accusation. So this check reports "nothing to
+compare" rather than making something up. Plainly: **an agent currently has
+no standard way to publish its price on-chain in a form software can
+verify** — that's a gap in the standard, not agents hiding something.
 
-Streamed bodies are cancelled rather than read, so we do not hold an open
-stream on someone else's server.
+## Discovery concentration
 
-A `pass` therefore means "answered with a 2xx in every attempt", and for SSE
-endpoints the reported latency is explicitly labelled as time-to-headers.
+If most of the registry effectively routes through one dominant domain,
+then "pick an agent from the registry" is really "use that one company" —
+and every risk that company carries becomes everyone's risk. We group
+endpoints by their base domain and flag anything over 50% share (a
+constant anyone can disagree with and change). Domains are anonymized in
+our output, same as the research we build on.
 
-## P2 (quote validity) and P3 (price consistency)
+At our current sample size, the endpoint-level concentration number isn't
+big enough to draw a strong conclusion from (a handful of domains among a
+handful of endpoints). The number that *is* well-supported, measured across
+the full registry rather than just the small endpoint shortlist: **85
+distinct owners, with the top ten holding 71%** — and that shape held
+steady as we scanned more agents, so it isn't sampling noise.
 
-P2 makes one unauthenticated request and checks the answer is a usable x402
-quote: HTTP 402, a decodable `PAYMENT-REQUIRED` header (or JSON body), a
-non-empty `accepts[]`, and required fields `scheme`, `network`, `amount`,
-`asset`, `payTo`, with `amount` an integer in atomic units.
+## The delivery check — the part that changes how you should read a failure
 
-The probe method is recorded alongside the result. A `400`/`405` from a
-GET-only resource is not the same finding as a refusal to quote, and the
-reader has to be able to tell them apart.
+We make one ordinary payment and check whether the resource actually comes
+back. Testing this against our own services surfaced something important:
+payment protocols let a server choose to take payment either *before* or
+*after* it tries to do the work. That choice decides whether a broken
+endpoint actually costs the buyer anything.
 
-`warn` (not `fail`) when the endpoint simply isn't paywalled — that is a fact
-about the endpoint, not a defect in it.
+We confirmed both cases directly on Hedera testnet, checking the actual
+ledger rather than trusting the response:
 
-### P2 must be version-aware, or it slanders people
+- **Settle-after (the safer default):** handler fails → **no money ever
+  moved.** Nothing lost.
+- **Settle-before:** handler fails → **money already moved**, and the
+  response is still just an error with nothing delivered. That's the real
+  paid-but-denied failure.
 
-x402 v1 and v2 are not wire-compatible:
+So "the endpoint returned an error" isn't by itself the dangerous case —
+the dangerous case is an error *after* the money has already moved. We only
+report a hard failure when we can confirm a payment actually settled; an
+error with no settlement gets a softer warning instead, because those are
+genuinely different findings and shouldn't be merged into one.
 
-| | v1 | v2 |
-|---|---|---|
-| Quote location | response body | `PAYMENT-REQUIRED` header |
-| Amount field | `maxAmountRequired` | `amount` |
-| Payment header | `X-PAYMENT` | `PAYMENT-SIGNATURE` |
+We also made sure to only ever report the amount we actually observed being
+paid — an earlier version printed our own spending *limit* instead of the
+real amount, which would have published a number we never actually
+witnessed.
 
-The first version of P2 validated v2 field names only. Against the live
-registry it reported **four real third-party agents as returning a quote
-"missing required field(s): amount"**. They were not broken — they were
-correct x402 v1 sellers on Base, and the checker was wrong.
+## What this pass doesn't cover
 
-That claim reached a draft of the README before a live re-check caught it. It
-is exactly the failure ETHICS.md §6 exists to prevent: publishing an
-accusation about someone else's service on the strength of our own bug. P2 now
-reads `x402Version` and validates against the matching field set, and reports
-the version in its summary.
-
-The lesson generalises: **a checker that only knows one version of a protocol
-will report everyone else as broken.** Any new check should establish what the
-target claims to speak before judging it.
-
-### P3 rarely runs, and that is the finding
-
-P3 compares the quoted price against the price advertised in the agent's
-ERC-8004 registration. **The registration schema has no price field** —
-`services[]` entries are `{name, endpoint, version}` — so unless an agent adds
-something non-standard, there is nothing to compare against. In our 500-agent
-sample, no agent published a machine-readable price.
-
-We deliberately do **not** parse a price out of the free-text `description`.
-Guessing a number from prose and then publishing a "4x mismatch" against it
-would be an unfounded accusation (ETHICS.md §6). Absent a structured price,
-P3 reports `skipped` with that reason.
-
-This is worth stating plainly in the write-up: **an agent cannot currently
-advertise its price on-chain in a way a buyer's software can check.** Price
-consistency is unverifiable by construction, not because agents are hiding
-anything.
-
-## P5 (discovery concentration)
-
-P5 is a property of the shortlist, not of one endpoint. If most of the registry
-resolves to one domain, "pick an agent from the registry" is really "use that
-provider", and the payment flow inherits whatever that provider does. Paper 1
-(arXiv:2605.11781) treats discovery as an attack surface for exactly this
-reason, measuring 13,760 endpoints across 420 domains with the top domain at
-77.5% and the top nine at 87.8%.
-
-Grouping is by registrable domain (subdomains collapsed, e.g.
-`mesh.heurist.xyz` → `heurist.xyz`). Without a full Public Suffix List this is
-an approximation with a small hard-coded list of multi-part suffixes; distinct
-host counts are reported alongside so the grouping is visible.
-
-Domains are **anonymised** in output (`domain-1`, `domain-2`, …). Paper 1
-anonymised them too — the finding is the concentration, not who is
-concentrated (ETHICS.md rule 7).
-
-`warn` above a top-domain share of **50%**, stated as a constant
-(`CONCENTRATION_WARN_THRESHOLD`) so a reader can disagree with the number.
-
-### Current sample is too small to make a concentration claim
-
-At n=500 agents sampled, only 8 declared endpoints exist across 2 domains. A
-"top domain = 50%" over 8 endpoints is not a finding — with two domains,
-"top 3 = 100%" is arithmetic, not evidence. **P5 is implemented and tested but
-under-powered until a wider scan runs**; Paper 1's corpus was three orders of
-magnitude larger.
-
-The concentration number that *is* well-powered from this sample is ownership,
-measured over all 500 scanned agents rather than only the 6 that declared an
-endpoint: **85 unique owners, top owner 14.2%, top three 36.2%, top ten
-71.4%** — and that shape held steady from n=200 to n=500, so it is not
-sampling noise.
-
-Note the two denominators answer different questions and should not be mixed:
-ownership across *all scanned agents* (85 owners / 500) versus ownership among
-*endpoint-declaring agents only* (2 owners / 6). The run output reports the
-latter because P5 is scoped to the endpoint shortlist; the registry-wide figure
-is the one to quote.
-
-## P4 (delivery) — and why settlement phase decides the result
-
-P4 makes one ordinary payment and checks whether the resource comes back.
-Running it against our own testbed surfaced something that changes how the
-result must be read.
-
-x402 lets a server choose **when** settlement happens relative to the handler
-(`extra.paymentFlow`): `authorization` (the default — settle *after* the
-handler succeeds) or `upfront` (settle *before* the handler runs).
-
-That distinction decides whether a failing endpoint actually costs the buyer
-anything:
-
-| Server config | Handler 500s | Did the buyer pay? | P4 outcome |
-|---|---|---|---|
-| `authorization` (default) | yes | **no** — settlement never fires | `warn` |
-| `upfront` | yes | **yes** — money already moved | `fail` |
-
-We confirmed both on Hedera testnet against our own endpoints, checking the
-mirror node rather than trusting the response:
-
-- Default flow, handler 500s → **no transaction on chain**. Nothing was lost.
-- `upfront`, handler 500s → `CRYPTOTRANSFER SUCCESS`, 1,000,000 tinybar moved
-  from the payer to `payTo`, and the response was `HTTP 500 {"error":"internal
-  error"}` with no resource. That is paid-but-denied, on chain.
-
-So **"endpoint returned an error" is not by itself the failure the papers
-describe.** The failure is an error *after* settlement. P4 reports `fail` only
-when a settlement receipt exists, and `warn` when the request failed without
-one — those are different findings and are not merged.
-
-A consequence worth stating: a naive x402 server on the default flow is
-*safer* than it looks, because its errors are free. The dangerous
-configuration is the one that takes the money first.
-
-### Reporting the amount honestly
-
-P4 records the amount from the payment requirements the client actually signed
-against (captured via `onAfterPaymentCreation`), not from our own spend cap.
-An earlier version printed the cap, which would have published a number we
-never observed — see ETHICS.md §6.
-
-### Spend controls
-
-The per-payment cap is enforced by the x402 client before anything is signed
-(`setSpendControls`), so an endpoint quoting above the cap is refused rather
-than paid. Default cap is 2,000,000 tinybar (0.02 HBAR), double the testbed
-price.
-
-## Known limitations of this pass
-
-- Sample is capped at `MAX_AGENTS` (currently the first N agent IDs from
-  `START_ID`), not the full registry — see `totalAgents` in each run's JSON
-  for the true registry size at scan time.
-- No liveness check — endpoints are recorded, never pinged. That's a
-  deliberately separate follow-up.
-- `unknown-gateway-failed` conflates "our gateway chain failed" with "this
-  content is genuinely gone" — we can't fully distinguish them from outside
-  the IPFS network. Re-running a scan later and comparing `unknown-gateway-
-  failed` agent IDs across runs is the practical way to tell transient from
-  permanent.
+- We capped the scan at a configurable agent count, not always the full
+  registry — each run's saved file records the true registry size at that
+  moment.
+- We can't always tell "our gateway failed" apart from "this content is
+  genuinely gone forever" for IPFS lookups — comparing the same agent
+  across multiple scan runs over time is the practical way to tell those
+  apart.

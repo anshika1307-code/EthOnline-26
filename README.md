@@ -2,24 +2,27 @@
 
 > Every pilot runs a preflight check. Your agent should too.
 
-**Before your AI agent pays a stranger's API, Preflight checks whether that
-endpoint is alive, honestly priced, and actually delivers.**
+Soon, AI agents will pay other AI agents for small jobs — a few cents for one
+API call, no human, no signup. This is already happening; it's called
+**x402**. The problem: an agent about to hand a stranger money has no way to
+check first whether that stranger is even alive, honestly priced, or will
+deliver anything at all. **Preflight is that check.**
 
-ETHOnline 2026 · Start Fresh track · solo
+ETHOnline 2026 · Start Fresh track · solo · **[read the plain-English version →](./docs/simple/)**
 
 ## Live
 
 | | |
 |---|---|
 | Dashboard + free passive scan | https://eth-online-26.vercel.app |
-| Paid API (x402 on Hedera testnet, Blocky402) | https://ethonline-26.onrender.com — `GET /pricing`, `GET /receipts`, `POST /check` |
-| Testbed (our own endpoints, the only target of active checks) | https://testbed-1l2m.onrender.com |
-| On-chain identity | ERC-8004 agent **#119** on Hedera testnet, registry `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
-| Payment audit trail | HCS topic [`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901) |
+| Paid API (x402 on Hedera testnet, via Blocky402) | https://ethonline-26.onrender.com — `GET /pricing`, `GET /receipts`, `POST /check` |
+| Testbed (our own endpoints — the only thing we ever attack) | https://testbed-1l2m.onrender.com |
+| Our own on-chain identity | ERC-8004 agent **#119** on Hedera testnet |
+| Payment receipts, public and unforgeable | HCS topic [`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901) |
 
-End to end, with nothing hard-coded: the buyer agent reads agent #119 from the
-registry, finds the x402 service in its registration file, pays for a check,
-decides whether to pay the target, and points at the HCS receipt.
+Nothing below is hard-coded. Run this and watch a real agent look itself up
+on-chain, pay for a check, read the verdict, and decide whether to pay the
+target:
 
 ```bash
 cd packages/checks && npx tsx src/bin/buyer-agent.ts https://testbed-1l2m.onrender.com/good
@@ -27,155 +30,116 @@ cd packages/checks && npx tsx src/bin/buyer-agent.ts https://testbed-1l2m.onrend
 
 ---
 
-## The problem
+## The problem, in numbers
 
-A July 2026 study of 15 x402 facilitators serving 60,000+ sellers and 360,000+
-buyers found rule violations in **every one**, enabling free shopping, asset
-theft, service denial and gas abuse ([arXiv:2607.19545](https://arxiv.org/abs/2607.19545)).
-A separate study demonstrated five practical attacks producing unpaid-service
-or paid-but-denied outcomes ([arXiv:2605.11781](https://arxiv.org/abs/2605.11781)).
-Meanwhile only 67 of the first 10,000 registered ERC-8004 agents even expose a
-service endpoint ([arXiv:2606.12128](https://arxiv.org/abs/2606.12128)).
+A July 2026 study of 15 x402 payment providers — 60,000+ sellers, 360,000+
+buyers — found rule violations in **every single one**: free shopping, stolen
+assets, denied service ([arXiv:2607.19545](https://arxiv.org/abs/2607.19545)).
+A separate study demonstrated five working attacks that end with the buyer
+either unpaid-for or paid-but-denied
+([arXiv:2605.11781](https://arxiv.org/abs/2605.11781)). And of the first
+10,000 agents registered under the emerging on-chain identity standard
+(ERC-8004), only 67 even expose a service you could contact
+([arXiv:2606.12128](https://arxiv.org/abs/2606.12128)).
 
 Agents are being asked to pay strangers with no way to check first.
 
-## What exists already, and what it doesn't do
+## What already exists — and the gap it leaves
 
-QuickNode's Explorer, Assay Labs and Origin DAO all read on-chain registry data
-and compute reputation from it. **None of them contacts the endpoint.** Sumsub's
-KYA covers compliance identity, not endpoint behaviour. Preflight adds the live
-behavioural layer. Full comparison in [`PRIOR_ART.md`](./PRIOR_ART.md).
+A few tools (QuickNode's Explorer, Assay Labs, Origin DAO) read on-chain
+registry data and compute a reputation score from it. **None of them
+actually contacts the endpoint.** Sumsub's KYA checks compliance identity,
+not whether the thing behind it works. Preflight is the one piece that
+actually knocks on the door. Full comparison: [`PRIOR_ART.md`](./PRIOR_ART.md).
 
-## What we found
+## What we found when we checked every agent
 
-### The funnel
+We scanned the **entire** ERC-8004 registry on Ethereum Sepolia — all
+10,249 registered agents, not a sample — on 12 Sep 2026.
 
-Full ERC-8004 Identity Registry on Ethereum Sepolia, scanned 12 Sep 2026 —
-**every agent, not a sample**.
-
-| | Agents | Of registry |
+| | Agents | Share |
 |---|---|---|
 | Registered | **10,249** | 100% |
-| Declare an addressable service endpoint | **85** | 0.83% |
-| Have an endpoint that answers | **37** | 0.36% |
-| Are actually paywalled with x402 | **5** | 0.05% |
-| Offer a **well-formed** payment quote | **5** | **0.05%** |
+| List a working web address | **85** | 0.83% |
+| Actually answer when contacted | **37** | 0.36% |
+| Correctly set up to accept payment | **5** | 0.05% |
 
-**Five agents in ten thousand are ready to be paid** — and four of them speak a
-protocol version the fifth cannot.
+**Five agents out of ten thousand are ready to be paid.** And even those
+five don't all speak the same payment protocol — an agent built for the
+newer version can't pay four of the five, and gets no helpful error saying
+why (the older version puts the price in the response body and calls it
+`maxAmountRequired`; the newer one puts it in a header and calls it
+`amount`). We hit this ourselves twice, on both sides — once it silently
+disabled a bug we'd deliberately built into our own test service (which
+turned into a [Hedera Harness pull request](./data/harness-pr/)), and once
+our own checker wrongly called four working services "broken." Full story:
+[`METHODOLOGY.md`](./METHODOLOGY.md).
 
-Prior work ([arXiv:2606.12128](https://arxiv.org/abs/2606.12128)) measured
-*declaration* and found 67 of the first 10,000 agents (0.67%). Our declaration
-figure — 0.83% at full-registry scale — independently corroborates that. The
-rows beneath it are behaviour, and nobody has published them.
+**The other 10,164 agents**, roughly: three quarters (7,707) registered and
+declared they offer *nothing*. About 1,541 couldn't be read at all — mostly
+because public file-hosting gateways (IPFS) refuse this kind of automated
+traffic, not because the agents are broken. The rest are placeholders,
+empty registrations, or entries with no working web address.
 
-### The payable agent economy is split across incompatible protocol versions
+**Ownership is concentrated.** 42 distinct owners sit behind the 85 agents
+with a real endpoint, and the **top ten hold 61%** of them. One wallet alone
+owns 58% of *every* agent ever registered.
 
-All five paywalled agents are alive, correctly return `402 Payment Required`,
-and offer a **well-formed quote**. None is broken. But they do not speak the
-same protocol:
+**A caveat we won't bury:** no stranger's endpoint can ever be marked
+`SAFE` here, because `SAFE` requires us to have actually completed a real
+payment to it and confirmed delivery — and we only ever spend real money
+against our own test services, never a stranger's. That's a direct
+consequence of the ethics rule below, not an oversight.
 
-| Agents | x402 | Chain | Asset |
-|---|---|---|---|
-| 6382, 6425, 6498 | **v1** | Base mainnet | USDC |
-| 6553 | **v1** | Base Sepolia | USDC |
-| 10123 | **v2** | Hedera testnet | HBAR |
+## The rule we hold ourselves to
 
-x402 v1 and v2 are not wire-compatible. v1 puts the quote in the response body
-and names the amount `maxAmountRequired`; v2 puts it in a `PAYMENT-REQUIRED`
-header and names it `amount`. v1 sends payment as `X-PAYMENT`, v2 as
-`PAYMENT-SIGNATURE`, and a v2 resource server does not read `X-PAYMENT` at all.
+**We never attack a service we don't own.** Trying to replay a payment or
+trick a service into double-serving is a form of unauthorized testing, even
+with good intentions — academic papers get to do this under a formal
+disclosure agreement, and that permission doesn't transfer to us. So:
 
-**A buyer built against v2 cannot pay four of the five payable agents in the
-registry**, and will not get a useful error — the quote simply looks malformed,
-or the payment header is silently ignored.
+1. Against anyone else's live service: **passive checks only** — one
+   request, sensible timeouts, nothing adversarial.
+2. The aggressive checks (replay attempts, etc.) run **only against our own
+   test services.**
+3. Every request identifies itself by name, with a link back to this repo.
+4. If an endpoint asks us to back off, we back off.
+5. Every method is published so results can be checked and challenged.
+6. We report facts ("paid, got HTTP 500, no content"), never accusations.
+7. Strangers are anonymized in the demo and dataset.
 
-We know because it happened to us twice: once when our own testbed silently
-stopped being vulnerable (the bug behind our
-[Hedera Harness PR](./data/harness-pr/)), and again when this very check
-reported all four v1 agents as "missing `amount`". They were not broken. Our
-v2-only validator was. Both are recorded in [`METHODOLOGY.md`](./METHODOLOGY.md).
+This isn't just a promise in a document — **it's enforced in the code.**
+Every aggressive check calls a guard function first that refuses to run
+against anything not on our own pre-approved list, and there's an automated
+test proving a stranger's address gets refused. The paid API can't run
+these checks *at any price*. Full detail: [`ETHICS.md`](./ETHICS.md).
 
-### What the other 10,164 look like
+## What Preflight actually checks
 
-| Category | Agents |
-|---|---|
-| `confirmed-empty` — metadata resolved, `services: []` | 7,707 |
-| `unknown-gateway-failed` — metadata unreadable | 1,541 |
-| `junk-placeholder` — RFC 2606 reserved domain | 407 |
-| `no-uri` — registered, nothing published | 374 |
-| `confirmed-no-endpoint` — services, none addressable | 135 |
-| `confirmed-has-endpoint` | 85 |
-
-Of the 1,541 unreadable, **795 were attempted and failed** against every IPFS
-gateway; **746 were never attempted** because the circuit breaker had already
-tripped. Different epistemic states, distinguished in the error text.
-
-### Concentration — where we disagree with the literature
-
-Paper 1 measured 13,760 x402 endpoints across 420 domains with the top domain
-at **77.5%**. Our registry shortlist — 149 endpoints across **44 domains** —
-has a top domain of just **11.4%**, top three 31%.
-
-Different corpus, genuinely different answer: the ERC-8004 registry is *not*
-concentrated the way the x402 endpoint population is. We report that rather
-than quietly dropping a check that failed to confirm the prior.
-
-Ownership is the sharper signal: **42 distinct owners** behind those 85 agents,
-with the **top ten holding 61.2%**.
-
-### Caveat we will not bury
-
-No third-party endpoint can ever be marked `SAFE` here, because we do not spend
-money against strangers — `SAFE` requires a completed payment (P4), which we
-run only against our own testbed. Third-party verdicts top out at `CAUTION`.
-That is a consequence of the ethics boundary, not an oversight.
-
-
-## Ethics and safety boundary — READ THIS TWICE
-
-**Do not run Group A checks against endpoints you do not own.** Replay attempts, free-shopping attempts and gas-abuse probes against third-party services are unauthorised testing. The papers did this under a responsible-disclosure process. That authorisation does not transfer to you.
-
-Rules for this project:
-
-1. **Live third-party endpoints: Group P only.** Passive, one request per round, sensible timeouts.
-2. **Group A runs only against our own deployed testbed.**
-3. **Identify ourselves.** Send a user-agent string naming the project with a link back to the repo.
-4. **Respect rate limits and any refusal signal.** If an endpoint asks us to stop, we stop.
-5. **Publish the methodology** so any result can be replayed and challenged.
-6. **Report facts, not accusations.** "Returned 500 after payment on 2026-09-12" — not "this agent is a scam."
-7. **No naming and shaming in the demo.** Use anonymised IDs for third parties.
-
-This is **enforced in code**, not by convention: every Group A check calls
-`assertOwnTestbed()` as its first line, which throws for any host not on our
-own allowlist. There is a test asserting a third-party host throws. The paid
-API cannot run Group A **at any price**. See [`ETHICS.md`](./ETHICS.md).
-
-## The check suite
-
-**Group P — passive, safe against anyone**
+**Safe against anyone — passive, one request, no attacks:**
 
 | | Check | Catches |
 |---|---|---|
-| P1 | Liveness | Declared but dead. 3 rounds, so "dead 3/3" not "dead once" |
-| P2 | Quote validity | Malformed or missing 402 payment quote |
-| P3 | Price consistency | Quoted price ≠ advertised price |
-| P4 | **Delivery** | Paid, got nothing. The headline failure mode in both core papers |
-| P5 | Discovery concentration | One domain dominating the shortlist |
+| P1 | Is it alive? | Declared but dead — checked 3 times, so "dead once" ≠ "actually dead" |
+| P2 | Is the price request well-formed? | A broken or missing payment quote |
+| P3 | Does the price match what's advertised? | Quoted price ≠ advertised price |
+| P4 | **Do you get anything back?** | Paid, got nothing — the failure this whole project is about |
+| P5 | Is the ecosystem dependent on one provider? | One domain quietly dominating discovery |
 
-**Group A — active, our own testbed only**
+**Only against our own test services — deliberately adversarial:**
 
 | | Check | Catches |
 |---|---|---|
-| A1 | Replay window | Same payment proof accepted twice → free shopping |
-| A2–A4 | Idempotency, settlement timing, allowance scope | Not implemented — out of scope for the event |
+| A1 | Can a payment be reused? | Same proof accepted twice → free service |
+| A2–A4 | Idempotency, settlement timing, allowance scope | Not built — out of scope for this event |
 
-Verdicts are **SAFE / CAUTION / UNSAFE / DEAD / UNKNOWN**. Deliberately not a
-score: QuickNode already ships a reputation number, and we report findings, not
-opinions. `SAFE` requires a **completed payment** — an endpoint that merely
-answers a GET is `UNKNOWN`, not safe to pay.
+Verdicts are plain language, not a score: **SAFE / CAUTION / UNSAFE / DEAD /
+UNKNOWN.** We deliberately didn't build a 0–100 number — a rival already
+ships one, and we'd rather report evidence than an opinion. `SAFE` requires
+a **completed, confirmed payment** — an endpoint that merely answers a `GET`
+is `UNKNOWN`, not proven safe to pay.
 
-## Architecture
+## How the pieces fit together
 
 ```
                     ERC-8004 IdentityRegistry (Sepolia)
@@ -198,84 +162,41 @@ answers a GET is `UNKNOWN`, not safe to pay.
                  api.testnet.blocky402.com
 ```
 
-## The payment flow
+## How the payment actually works
 
-Preflight is both a **consumer** and a **seller** of x402 payments on Hedera.
+Preflight both **sells** checks and **buys** them, over the same protocol.
 
-**As a seller** (`apps/api`) — the safety check itself is sold per call:
+**Selling** (`apps/api`): an unpaid `POST /check` gets back `HTTP 402` with
+a price quote. The caller signs a payment and retries; we forward it to
+Blocky402 to settle on Hedera, then hand back the report along with the
+settlement receipt.
 
-1. `POST /check` unpaid → **HTTP 402** with a `PAYMENT-REQUIRED` header
-   carrying `{scheme, network, amount, asset, payTo, extra.feePayer}`
-2. The caller builds a `TransferTransaction` with the facilitator's `feePayer`
-   as transaction payer, **partially signs** it, and does not submit
-3. Retry with the `PAYMENT-SIGNATURE` header (x402 **v2** — `X-PAYMENT` is v1
-   and is not read by a v2 server)
-4. Our server forwards to Blocky402 `/verify` → `/settle`; the facilitator
-   co-signs, pays gas, and submits to Hedera
-5. On success we return the Preflight report, with the settlement receipt in
-   `PAYMENT-RESPONSE`
+**Buying** (`packages/checks` P4): the delivery check makes one real
+payment to a target and confirms the resource actually comes back — with a
+hard spend cap enforced *before* anything is signed.
 
-**As a buyer** (`packages/checks` P4) — the delivery check pays a target
-endpoint one real, legitimate payment and verifies the resource comes back.
-A hard per-payment spend cap is enforced by the x402 client *before anything is
-signed*.
+**Pricing is metered, not flat**: `price = unit(depth) × number of
+endpoints checked`, capped at 10 per request. We tested that you can't pay
+for a 1-endpoint check and reuse the signature for a 5-endpoint one — it
+gets rejected with a price mismatch, not a signature error, proving the
+check is real. `GET /pricing` returns the exact formula.
 
-### Metered, not flat
-
-The price is the work: `amount = unit(depth) × distinct endpoints`, up to 10 per request.
-
-| depth | runs | tinybar per endpoint |
-|---|---|---|
-| `full` (default) | P1 + P2 + P3 | 100,000 (0.001 HBAR) |
-| `liveness` | P1 only | 40,000 |
-
-```bash
-POST /check { "endpoint": "https://..." }                                    # 100,000
-POST /check { "endpoints": ["https://a", "https://b", "https://c"],
-              "depth": "liveness" }                                          # 120,000
-```
-
-The 402 quote is computed from the request body, and the paid retry is
-re-priced from *its* body with the same parser ([apps/api/src/metering.ts](apps/api/src/metering.ts)).
-So a payment signed for one endpoint can't be used for ten. We tested that
-against the running server on testnet:
-
-| request | quoted | result |
-|---|---|---|
-| 1 endpoint, full | 100,000 | paid, settled `0.0.7162784@1789295746.951052963` (mirror node: −100,000 / +100,000) |
-| 3 endpoints, liveness | 120,000 | paid, settled `0.0.7162784@1789295758.705983867` (mirror node: −120,000 / +120,000), HCS receipt seq 10 records the meter |
-| signature for the 1-endpoint quote, replayed with a 5-endpoint body | re-quoted 500,000 | **402 `No matching payment requirements`, nothing settled** |
-| same signature, original 1-endpoint body (control) | 100,000 | paid, settled `0.0.7162784@1789295819.841622433` |
-
-The control row matters: it shows the attack was refused because of the price
-mismatch, not because the signature was bad.
-
-`GET /pricing` returns the formula, units and cap. HBAR is asset `0.0.0` and
-amounts are in tinybars (1 HBAR = 10⁸).
-
-## Run it
+## Run it yourself
 
 ```bash
 npm install
-node scripts/verify-claims.mjs           # re-derive every published number from data/
+node scripts/verify-claims.mjs           # re-derive every number above from data/
 cp .env.local.example .env.local         # set RPC_URL for Sepolia
 
-# 1. scan the registry  (~6 min for all 10,249 agents)
-npm run fetch-agents                     # MAX_AGENTS=500 for a quick pass
-
-# 2. liveness over every declared endpoint
-cd packages/checks && npm install && npm run p1
-
-# 3. render Preflight reports (hosts anonymised by default)
-npm run report
-
-# 4. dashboard
-cd ../.. && npm run dev                  # http://localhost:3000
+npm run fetch-agents                     # scan the registry (~6 min for all 10,249)
+cd packages/checks && npm install && npm run p1   # liveness over every declared endpoint
+npm run report                           # render Preflight reports
+cd ../.. && npm run dev                  # dashboard at http://localhost:3000
 ```
 
-**Payments** need two funded Hedera testnet accounts from
-[portal.hedera.com](https://portal.hedera.com/) — ECDSA keys, `0x`-prefixed.
-Copy `testbed/.env.example` to `testbed/.env`.
+**To make real payments**, you'll need two funded Hedera testnet accounts
+from [portal.hedera.com](https://portal.hedera.com/) (ECDSA keys,
+`0x`-prefixed). Copy `testbed/.env.example` to `testbed/.env`, then:
 
 ```bash
 cd testbed   && npm install && npm start   # :8402  good / bad-replay / bad-delivery
@@ -286,102 +207,55 @@ npm run p4 -- http://localhost:8402/good http://localhost:8402/bad-delivery
 npm run a1 -- http://localhost:8402/good http://localhost:8402/bad-replay
 ```
 
-> ⚠️ The facilitator URL is `https://api.testnet.blocky402.com`. The prize page
-> links `https://blocky402.com/`, which is the marketing site — pointing an
-> x402 server at it 404s and every gated route then 500s. See
+> ⚠️ Heads up: Blocky402's facilitator API lives at
+> `https://api.testnet.blocky402.com` — not `https://blocky402.com/`, which
+> is just the marketing site and will 404. Details in
 > [`HEDERA_FEEDBACK.md`](./HEDERA_FEEDBACK.md).
 
-## Sponsor technology
+## Built on Hedera and Bazantic
 
-**Hedera** — the whole payment layer.
+Full sponsor write-ups, with all the evidence: **[Hedera →](./docs/simple/hedera.md)** ·
+**[Bazantic →](./docs/simple/bazantic.md)**
 
-*The loop the track asks for — an agent discovering a service and paying for it
-with no API key, account, or subscription — runs end to end:*
-
-```
-1. DISCOVER  buyer agent reads Preflight's ERC-8004 entry (#119) off the Hedera registry
-2. PAY       buys a safety check over x402, settled through Blocky402
-3. DECIDE    uses the verdict to decide whether to pay the target at all
-4. AUDIT     the check it paid for is recorded as a receipt on HCS
-```
-
-`packages/checks/src/bin/buyer-agent.ts` · the decision rule is tested so it
-never claims something the checks did not observe.
-
-- **Verifiable payment audit trail on HCS** — every settled check writes one
-  receipt to topic [`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901)
-  linking what was checked and the verdict to the settlement transaction that
-  paid for it. Written only *after* settlement, so a receipt always corresponds
-  to money that moved. The topic has a submit key, so receipts cannot be
-  forged; anyone can read them from the mirror node without an account.
-  [`apps/api/src/hcs.ts`](./apps/api/src/hcs.ts)
-- x402-gated service on Hedera testnet settled through Blocky402:
-  [`apps/api/src/server.ts`](./apps/api/src/server.ts)
-- Real paid requests end-to-end, buyer side:
-  [`packages/checks/src/checks/p4-delivery.ts`](./packages/checks/src/checks/p4-delivery.ts)
-- Three x402 endpoints of our own: [`testbed/src/server.ts`](./testbed/src/server.ts)
-- **Preflight is itself registered as ERC-8004 agent #119 on Hedera testnet** —
-  [tx](https://hashscan.io/testnet/transaction/0xe10a31b584a0cf2dbfacd71b21482359416c7bba183d63b19083a4621882f99c),
-  registration stored fully on-chain as a base64 `data:` URI. Once the paid API
-  was hosted we pointed the entry at it
-  ([setAgentURI tx](https://hashscan.io/testnet/transaction/0x2610b4227e4767ba8963a7320ded2587ed6556ce0c6e6e2188b5fbc293455327));
-  our own classifier now rates it `confirmed-has-endpoint`. Before that it rated
-  `confirmed-no-endpoint` — we made no exception for our own entry.
-  Evidence: [`data/agent-registration/`](./data/agent-registration/)
-- On-chain agent identity via **ERC-8004**, read directly from the registry:
-  [`packages/registry/src/fetch-agents.ts`](./packages/registry/src/fetch-agents.ts)
-- **Harness contribution**: [hedera-dev/hedera-harness#78](https://github.com/hedera-dev/hedera-harness/pull/78)
-  correcting the x402 v1/v2 payment header in
-  `docs/prds/x402-metered-api.md` — patch and description in
-  [`data/harness-pr/`](./data/harness-pr/), friction logged live in
-  [`HEDERA_FEEDBACK.md`](./HEDERA_FEEDBACK.md)
-
-**Bazantic** — Preflight as an agent tool, composed with the Hedera mirror node.
-
-- Recipe *"Should my agent pay this x402 endpoint"*: Preflight pulls the payee
-  out of the quote, the mirror node for that same network checks the payee
-  exists, can receive, and has been paid before. Our `/bad-payee` testbed route
-  quotes perfectly (Preflight: `UNKNOWN`) and pays an account that doesn't
-  exist (combined: `DO_NOT_PAY`).
-- It refuses to cross networks: `0.0.10475917` is our receiver on testnet and an
-  unrelated funded account on mainnet.
-- Gateway upstream routes and spec: [`apps/api/src/gateway.ts`](./apps/api/src/gateway.ts) ·
-  decision rules as tested code: [`packages/checks/src/payee.ts`](./packages/checks/src/payee.ts) ·
-  recipe, oracle, test plan and setup: [`integrations/bazantic/`](./integrations/bazantic/)
+In short — the whole payment layer runs on Hedera: a real agent discovers
+Preflight's on-chain identity, pays for a check over x402/Blocky402, decides
+based on the verdict, and every completed check writes an unforgeable
+receipt to Hedera Consensus Service
+([`0.0.10519901`](https://hashscan.io/testnet/topic/0.0.10519901)). We also
+filed a real fix against Hedera's own tooling:
+[hedera-dev/hedera-harness#78](https://github.com/hedera-dev/hedera-harness/pull/78).
+On Bazantic, Preflight is wrapped as a reusable recipe that combines with
+Hedera's own mirror node to catch a scam neither service catches alone — see
+the write-up for the exact fake-endpoint proof.
 
 ## Honest limitations
 
-- **Sepolia only.** Multi-chain is parameterised but only Sepolia was scanned.
-- **Public IPFS gateways refuse this traffic**, so ~1,541 agents' metadata could
-  not be read; 748 of those were never attempted once the circuit breaker
-  tripped. That is recorded, not hidden.
-- **P3 almost never runs.** ERC-8004 has no price field, so there is usually
-  nothing to compare a quote against. We do not guess prices from prose.
-- **P5 needs a bigger corpus** than the endpoint shortlist provides to say
-  anything strong about domain concentration.
-- **A2–A4 not implemented.**
-- **Third-party verdicts can never be `SAFE`**, because we do not spend money
-  against strangers. That falls out of the ethics boundary and is intentional.
-- **Private-address refusal is by hostname, not DNS.** Every front door refuses
-  loopback, private, link-local and metadata addresses, but a public name that
-  resolves to a private IP (DNS rebinding) is not caught.
-- **Cold starts read as dead.** The API and testbed are free Render instances.
-  A sleeping endpoint that doesn't answer within P1's timeout is reported
-  `DEAD`, ours included — which is accurate at the moment it was checked.
-- **The Bazantic recipe is a prompt.** It's tested against a code oracle
-  ([`integrations/bazantic/TEST_PLAN.md`](./integrations/bazantic/TEST_PLAN.md)),
-  but an LLM can still deviate; the oracle is how you'd notice.
+- **Sepolia only.** Multi-chain support exists in the code but only Sepolia
+  was actually scanned.
+- **~1,541 agents' metadata couldn't be read**, mostly because public IPFS
+  gateways refuse automated traffic — recorded, not hidden.
+- **P3 (price match) almost never runs** — the registry standard has no
+  price field, so there's usually nothing to compare against, and we
+  refuse to guess a number out of free-text descriptions.
+- **A2–A4 aren't built.**
+- **A stranger's endpoint can never be marked `SAFE`** — direct consequence
+  of never spending money against people who haven't consented to it.
+- **A public name that resolves to a private address (DNS rebinding) isn't
+  caught** — we only check the hostname, not where it actually resolves.
+- **Free hosting tiers sleep.** A cold instance that doesn't answer in time
+  gets reported `DEAD` — accurate at the moment checked, but worth knowing.
 
-## Docs
+## More docs
 
 | | |
 |---|---|
-| [`ETHICS.md`](./ETHICS.md) | The boundary, and how it is enforced |
-| [`METHODOLOGY.md`](./METHODOLOGY.md) | Every check, exactly how it works, so results replay |
-| [`PRIOR_ART.md`](./PRIOR_ART.md) | What exists, what we take, what is ours |
-| [`ATTRIBUTION.md`](./ATTRIBUTION.md) | New work vs reused |
-| [`AI_USAGE.md`](./AI_USAGE.md) | AI disclosure, and the corrections review caught |
-| [`DEPLOY.md`](./DEPLOY.md) | How to host it, and what breaks if you don't read it |
-| [`docs/findings.md`](./docs/findings.md) | **The published dataset writeup** — findings, method, limitations, citation |
+| [`docs/simple/`](./docs/simple/) | **Start here for the plain-English version**, including dedicated Hedera and Bazantic write-ups |
+| [`ETHICS.md`](./ETHICS.md) | The boundary, and how it's enforced in code |
+| [`METHODOLOGY.md`](./METHODOLOGY.md) | Exactly how every check works, so results can be replayed |
+| [`PRIOR_ART.md`](./PRIOR_ART.md) | What exists already, what's ours |
+| [`ATTRIBUTION.md`](./ATTRIBUTION.md) | New work vs. reused |
+| [`AI_USAGE.md`](./AI_USAGE.md) | How AI was used, and the mistakes we caught |
+| [`DEPLOY.md`](./DEPLOY.md) | How to host it |
+| [`docs/findings.md`](./docs/findings.md) | The published dataset write-up |
 | [`HEDERA_FEEDBACK.md`](./HEDERA_FEEDBACK.md) | Friction log, written live |
-| `data/**` | Every raw scan, liveness round and report |
+| `data/**` | Every raw scan, liveness round, and report |
