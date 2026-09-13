@@ -104,6 +104,20 @@ see [`ETHICS.md`](./ETHICS.md) §1 rule 2.
 
 ---
 
+## 3b. Point Preflight's ERC-8004 entry at the live API
+
+Preflight is registered as **agent #119** on Hedera testnet, but its
+registration currently lists only the source repo, so our own classifier rates
+it `confirmed-no-endpoint`. Once `apps/api` has a public URL:
+
+```bash
+npx tsx scripts/register-agent.ts --update 119 --endpoint https://your-api.onrender.com        # dry run
+npx tsx scripts/register-agent.ts --update 119 --endpoint https://your-api.onrender.com --send
+```
+
+That adds an `x402` service pointing at `/check` and sets `x402Support: true`.
+Our own entry should then pass our own checks — worth showing on video.
+
 ## 4. Verify the deployment
 
 ```bash
@@ -139,6 +153,7 @@ curl -s "https://testnet.mirrornode.hedera.com/api/v1/transactions?account.id=0.
 - [ ] Unpaid `POST /check` returns **402** with a `PAYMENT-REQUIRED` header
 - [ ] One real payment settles, visible on HashScan
 - [ ] `OWN_TESTBED_HOSTS` set if the testbed is deployed
+- [ ] Agent #119 updated to the live API via `scripts/register-agent.ts --update`
 - [ ] Tested in a clean browser and on mobile
 
 ---

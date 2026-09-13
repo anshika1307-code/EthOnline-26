@@ -16,6 +16,7 @@
 import { config } from 'dotenv';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createPublicClient, http, parseAbi, getAddress, type Address } from 'viem';
 import { sepolia } from 'viem/chains';
 
@@ -75,7 +76,7 @@ type Category =
   | 'confirmed-has-endpoint' // metadata resolved; at least one http(s) service endpoint
   | 'unknown-gateway-failed'; // metadata fetch failed for a reason unrelated to the above
 
-function isJunkPlaceholder(agentURI: string): boolean {
+export function isJunkPlaceholder(agentURI: string): boolean {
   if (!/^https?:\/\//i.test(agentURI)) return false;
   try {
     const host = new URL(agentURI).hostname.toLowerCase();
@@ -85,7 +86,7 @@ function isJunkPlaceholder(agentURI: string): boolean {
   }
 }
 
-function classify(
+export function classify(
   agentURI: string,
   metadataResolved: boolean,
   services: unknown[],
@@ -244,7 +245,7 @@ async function enumerateViaLogs(client: Client, toBlock: bigint): Promise<AgentR
 // we can fix on-chain. Try the declared encoding first, then fall back to
 // treating the payload as raw text so one mislabeled field doesn't sink an
 // otherwise-valid registration file.
-function decodeDataUri(uri: string): Record<string, unknown> {
+export function decodeDataUri(uri: string): Record<string, unknown> {
   const comma = uri.indexOf(',');
   if (comma === -1) throw new Error('malformed data: URI');
   const meta = uri.slice(5, comma);
@@ -390,7 +391,7 @@ const NON_SERVICE_NAMES = new Set([
  * `http://localhost:8080` is not a service anyone can buy from. 43 endpoints
  * in the full registry point at localhost.
  */
-function isUnreachableHost(hostname: string): boolean {
+export function isUnreachableHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (JUNK_HOSTS.has(h) || JUNK_TLDS.some((tld) => h.endsWith(tld))) return true;
   if (h === '127.0.0.1' || h === '0.0.0.0' || h === '::1' || h.endsWith('.local')) return true;
@@ -406,7 +407,7 @@ function isUnreachableHost(hostname: string): boolean {
  * unreachable host does not count. Excluded entries are still returned in
  * `services` so the raw claim stays inspectable.
  */
-function extractServiceEndpointUrls(metadata: Record<string, unknown>): {
+export function extractServiceEndpointUrls(metadata: Record<string, unknown>): {
   services: unknown[];
   urls: string[];
 } {
@@ -619,7 +620,15 @@ async function main() {
   console.log(`\nRaw results written to ${outFile}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only scan when run as a script. Without this guard, importing anything from
+// this file (a test, another tool) would kick off a full registry scan.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -40,7 +40,7 @@ export type Probe = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function median(xs: number[]): number {
+export function median(xs: number[]): number {
   if (xs.length === 0) return 0;
   const s = [...xs].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
@@ -55,7 +55,7 @@ function median(xs: number[]): number {
  * is up and behaving to spec. Counting it as dead marked every payable agent
  * in the registry as broken, which is the opposite of the truth.
  */
-function isAlive(status: number): boolean {
+export function isAlive(status: number): boolean {
   return (status >= 200 && status < 300) || status === 402;
 }
 
