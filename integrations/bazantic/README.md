@@ -28,10 +28,10 @@ endpoint URL
 preflightCheckEndpoint ──► verdict, checks, quote, hederaPayTo {account, network}, checkedAtUnix
    │
    ├─ DEAD / CAUTION / no quote ─────────────────────────────► DO_NOT_PAY   (no mirror calls, no mirror spend)
-   ├─ payee not on Hedera ───────────────────────────────────► CANNOT_VERIFY_PAYEE
+   ├─ payee not on Hedera, or not on testnet ────────────────► CANNOT_VERIFY_PAYEE
    │
-   ▼ pick the mirror node for hederaPayTo.network — never a different one
-getAccount ──► missing / deleted / receiver_sig_required ────► DO_NOT_PAY
+   ▼ testnet payee → testnet mirror node only
+getAccounts account.id= ──► empty / deleted / receiver_sig_required ──► DO_NOT_PAY
 getTokensByAccountId (HTS quotes only) ──► can't receive ────► DO_NOT_PAY
 getTransactions ──► incoming payments;  created_timestamp vs checkedAtUnix ──► age
    │
@@ -51,10 +51,25 @@ as two unrelated accounts (checked on 13 Sep 2026):
 | testnet (our receiver) | `1789131390.679512817` | `0x975e40d1…c125a6b0` | 100,019,520,000 |
 | mainnet (someone else) | `1778617190.487475001` | `0x695f6c21…1297a173` | 69,737,293 |
 
-An agent handed both tools and no guidance would look the testnet payee up on
-mainnet, find a four-month-old funded account, and call the seller verified.
-The recipe routes by `hederaPayTo.network` and refuses to cross-check. That is
-why we added a testnet mirror gateway instead of reusing the mainnet one.
+An agent that looked the testnet payee up on mainnet would find a
+four-month-old funded account and call the seller verified. So we added a
+testnet mirror gateway instead of reusing the mainnet one.
+
+**Prompt rules alone didn't prevent it.** The first draft bound both mirror
+gateways and told the model to pick by network. Both expose a tool called
+`getAccount`, and in a real draft run the model announced "looking up payee
+account on Hedera testnet" while the call went to the mainnet gateway
+(`xmtqdss7cbddlchc7s3sfdb4b4`). An earlier run with the same prompt had picked
+testnet correctly — so it was luck, not the prompt. We removed the mainnet
+bindings. The recipe now *cannot* make a cross-network lookup; a mainnet payee
+gets `CANNOT_VERIFY_PAYEE`. The lesson generalises: when two bound gateways
+share tool names, don't rely on the model to tell them apart.
+
+**Tool errors abort a recipe run.** The same run looked up the missing payee
+with `getAccount`, got the mirror node's 404, and Bazantic failed the whole run
+instead of letting the model conclude "does not exist". The recipe uses
+`getAccounts?account.id=` instead, which returns `200 {"accounts":[]}` for a
+missing account.
 
 ## Live gateways
 
@@ -62,13 +77,13 @@ why we added a testnet mirror gateway instead of reusing the mainnet one.
 |---|---|---|
 | Preflight (ours) | `yxyem37kg5ffdbiksreq54z2mq` | https://yxyem37kg5ffdbiksreq54z2mq.bazgateway.com — `POST /gw/check` $0.002, `POST /gw/liveness` $0.0008, USDC on Base; MCP at `/mcp` |
 | Hedera Testnet Mirror Node (ours) | `z3xelbmspbemzdfw3ufuo3pteq` | https://z3xelbmspbemzdfw3ufuo3pteq.bazgateway.com — accounts, transactions, account tokens at $0.0005, USDC on Base |
-| Hedera Mirror Node, mainnet (Bazantic's) | `xmtqdss7cbddlchc7s3sfdb4b4` | https://xmtqdss7cbddlchc7s3sfdb4b4.bazgateway.com |
+| Hedera Mirror Node, mainnet (Bazantic's) | `xmtqdss7cbddlchc7s3sfdb4b4` | **not bound** — see the trap above |
 
 Checked 13 Sep 2026: the Preflight gateway's `tools/list` returns
 `preflightCheckEndpoint` and `preflightLivenessCheck`, each taking the JSON body
 as a `requestBody` argument, and an unpaid `POST /gw/check` returns 402 quoting
 2000 USDC base units on `eip155:8453`. The testnet mirror gateway lists
-`getAccount`, `getTransactions` and `getTokensByAccountId`; those three routes
+`getAccounts`, `getTransactions` and `getTokensByAccountId`; those routes
 quote 500 base units ($0.0005).
 
 ## What's in this folder
@@ -193,6 +208,10 @@ because it didn't answer in time.
 5. **The dashboard showed the MCP server as "UNAVAILABLE — Gateway unreachable"**
    right after activation, while `POST <gateway>/mcp` `tools/list` already
    answered 200 with both tools.
+7. **A tool's HTTP 404 fails the whole recipe run**, even when "not found" is
+   the answer the recipe needs. Worked around with a list endpoint.
+8. **Recipes can't disambiguate same-named tools across bound gateways** — a
+   `getAccount` bound on two gateways was routed to the wrong one.
 6. **Generated tools wrap a JSON body as `requestBody`.** Reasonable, but not in
    the recipe docs, and a prompt that says "call with `{endpoint}`" gets it wrong.
 

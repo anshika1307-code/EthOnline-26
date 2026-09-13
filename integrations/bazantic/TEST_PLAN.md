@@ -47,8 +47,8 @@ have moved.
 
 | # | input | why it's here | Preflight alone | expected decision | expected tool calls |
 |---|---|---|---|---|---|
-| 1 | `…/good` | honest seller, real payee | UNKNOWN (P1 ✓ P2 ✓) | `PAY_WITH_SMALL_CAP` — payee `0.0.10475917` exists, 1.9 days old, 25+ incoming payments | preflight, testnet getAccount, testnet getTransactions |
-| 2 | `…/bad-payee` | **the both-services case**: valid quote, payee doesn't exist | UNKNOWN (P1 ✓ P2 ✓) | `DO_NOT_PAY` — payee `0.0.999999999` does not exist on Hedera testnet | preflight, testnet getAccount |
+| 1 | `…/good` | honest seller, real payee | UNKNOWN (P1 ✓ P2 ✓) | `PAY_WITH_SMALL_CAP` — payee `0.0.10475917` exists, ~2 days old, 25+ incoming payments | preflight, testnet getAccounts, testnet getTransactions |
+| 2 | `…/bad-payee` | **the both-services case**: valid quote, payee doesn't exist | UNKNOWN (P1 ✓ P2 ✓) | `DO_NOT_PAY` — payee `0.0.999999999` does not exist on Hedera testnet | preflight, testnet getAccounts (empty list) |
 | 3 | `…/does-not-exist` | dead route | DEAD (P1 ✗ 404×3) | `DO_NOT_PAY` | preflight only |
 | 4 | `https://example.com/` | alive, not a paid API | UNKNOWN (P1 ✓, P2 warn: HTTP 405, no quote) | `DO_NOT_PAY` — offers no x402 quote | preflight only |
 | 5 | a live Base x402 seller from the Sepolia scan (`data/reports/`, P2 pass, x402 v1) | non-Hedera payee | UNKNOWN (quote pays a `0x…` address on `base`) | `CANNOT_VERIFY_PAYEE`, `maxPayment` = its quote | preflight only |
@@ -61,11 +61,12 @@ After 18 Sep 2026 (`0.0.10475917` was created at `1789131390`), case 1 becomes
 
 ## The cross-network regression test
 
-Temporarily remove the three testnet-mirror bindings from a **draft copy** of
-the recipe and run case 1.
-
-- **Correct:** `CANNOT_VERIFY_PAYEE`, reason says no testnet mirror is available, no mainnet calls.
-- **Critical failure:** any `getAccount 0.0.10475917` against the mainnet gateway. That returns a different, real account (created `1778617190`, balance 69,737,293 tinybar) and "verifies" it.
+**Structural now:** the recipe binds no mainnet mirror tools, so it cannot make a
+mainnet lookup. In every run, check each mirror call's HTTP path starts with
+`/z3xelbmspbemzdfw3ufuo3pteq/` (testnet). A path under `/xmtqdss7cbddlchc7s3sfdb4b4/`
+is a critical failure — it happened once, with the earlier two-gateway draft
+(see "Observed results"), and a lookup there returns a different, real account
+(created `1778617190`, balance 69,737,293 tinybar).
 
 Oracle equivalent, run 13 Sep 2026 → `CANNOT_VERIFY_PAYEE`, tool calls: preflight only:
 `npx tsx integrations/bazantic/reference-run.ts --direct --mirrors mainnet https://testbed-1l2m.onrender.com/good`
@@ -89,8 +90,9 @@ Bazantic draft runs, 13 Sep 2026, `anthropic/claude-sonnet-4.6`.
 
 | # | recipe decision | matches oracle? | notes |
 |---|---|---|---|
-| 1 | `PAY_WITH_SMALL_CAP` | **yes, every field** | Testnet gateway confirmed reading testnet: `getAccount` returned `evm_address` `0x975e40d1…c125a6b0`, `created_timestamp` `1789131390.679512817`. ageDays 2.0 from `checkedAtUnix` 1789307494, inboundPayments 25, historyTruncated true, maxPayment 1000000 / 0.0.0 / hedera:testnet. Tool calls in order: preflight → testnet getAccount → testnet getTransactions; no mainnet call. 50.5 s, 16,575 tokens |
+| 1 (v1 draft) | `PAY_WITH_SMALL_CAP` | **yes, every field** | Testnet gateway confirmed reading testnet: `getAccount` returned `evm_address` `0x975e40d1…c125a6b0`, `created_timestamp` `1789131390.679512817`. ageDays 2.0 from `checkedAtUnix` 1789307494, inboundPayments 25, historyTruncated true, maxPayment 1000000 / 0.0.0 / hedera:testnet. Tool calls in order: preflight → testnet getAccount → testnet getTransactions; no mainnet call. 50.5 s, 16,575 tokens |
 | 2 (cold) | `DO_NOT_PAY` | decision yes, **path no** | The Render testbed was asleep: Preflight P1 timed out 3/3 (41 s) → `DEAD` → recipe correctly stopped with no mirror calls. Right behaviour for that input, but not the case under test. Rerun warm |
+| 2 (v1 draft) | run **failed** | **no — critical** | Preflight correct (`UNKNOWN`, payee `0.0.999999999` testnet). The model then called `getAccount` on the **mainnet** gateway `xmtqdss7…` while saying "testnet", and the mirror's 404 aborted the run. Fixed in v2: mainnet bindings removed, `getAccounts` list lookup instead |
 | 2 | | | |
 | 3 | | | |
 | 4 | | | |

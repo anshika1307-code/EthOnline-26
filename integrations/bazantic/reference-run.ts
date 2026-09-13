@@ -38,8 +38,8 @@ const flag = (name: string) => {
 };
 const direct = args.includes('--direct');
 const testbed = flag('--testbed') ?? 'https://testbed-1l2m.onrender.com';
-/** Which mirror networks the recipe has bound. Default matches recipe.json. */
-const mirrorNetworks = (flag('--mirrors') ?? 'testnet,mainnet').split(',') as HederaNetwork[];
+/** Which mirror networks the recipe has bound. Default matches recipe.json: testnet only. */
+const mirrorNetworks = (flag('--mirrors') ?? 'testnet').split(',') as HederaNetwork[];
 
 const VALUE_FLAGS = new Set(['--testbed', '--mirrors']);
 const cases = args.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.has(args[i - 1]));
@@ -78,8 +78,11 @@ async function assess(endpoint: string) {
   const needsMirror =
     pf.verdict === 'UNKNOWN' && pf.quote && h && mirrorNetworks.includes(h.network);
   if (needsMirror && h) {
-    const account = await mirror<MirrorAccount>(h.network, `/api/v1/accounts/${h.account}?transactions=false`);
-    calls.push(`[${h.network} mirror] getAccount ${h.account}`);
+    // The list form, as the recipe uses: a missing account is 200 with an empty
+    // list rather than a 404, which Bazantic treats as a failed run.
+    const list = await mirror<{ accounts: NonNullable<MirrorAccount>[] }>(h.network, `/api/v1/accounts?account.id=${h.account}&limit=1`);
+    const account: MirrorAccount = list?.accounts.find((a) => a.account === h.account) ?? null;
+    calls.push(`[${h.network} mirror] getAccounts account.id=${h.account}`);
     let txs: MirrorTransactions | null = null;
     let tokenAssociated: boolean | null = null;
     if (account) {
